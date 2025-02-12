@@ -6,7 +6,7 @@ from typing import Tuple
 import multiprocessing
 import threading
 
-from closedloop_lsl.utils import envelope
+from closedloop_lsl.utils.utils import envelope
 
 
 class SWCatcher:
@@ -261,16 +261,24 @@ class SWCatcher:
         zero_crossings = np.where(np.logical_or(angle_diff==2, angle_diff==-2))[0]
         zero_crossings += 1 # need to exclude the very same timepoint of zerocrossing
         
+        monotonic_data = angle_data[zero_crossings[-1]:]
+        
         # Check if the signs of the angle from the last zero crossing to the last sample are all positive or all negative
         if phase == 'neg':
             # Angle is positive in the down state
-            if np.all(np.sign(angle_data[zero_crossings[-1]:]) == 1):
+            if np.all(np.sign(monotonic_data) == 1):
+                # Check if all the values are between pi/2 and pi
+                # if np.all(np.logical_and(monotonic_data > np.pi/2, 
+                #                          monotonic_data < np.pi)): # IT IS TOO STRICT, MUST HAVE A LIMITATION ON MILLISECONDS 
                 is_phase = True
             else:
                 is_phase = False
         elif phase == 'pos':
             # Angle is negative in the up state
-            if np.all(np.sign(angle_data[zero_crossings[-1]:]) == -1):
+            if np.all(np.sign(monotonic_data) == -1):
+                # Check if all the values are between -pi/2 and 0
+                # if np.all(np.logical_and(monotonic_data > -np.pi/2, 
+                #                          monotonic_data < 0)): # IT IS TOO STRICT, MUST HAVE A LIMITATION ON MILLISECONDS 
                 is_phase = True
             else:
                 is_phase = False
@@ -284,7 +292,7 @@ class SWCatcher:
         
         # Compute the possible number of samples to the next up-phase
         if phase == 'pos':
-            next_target = n_samp * 3
+            next_target = (1. / self.sfreq) * (n_samp * 3)
         else:
             next_target = 0
             
@@ -301,6 +309,7 @@ class SWCatcher:
         # self.queues.put(data)
         for i in range(self.num_listeners):
             self.data_queues[i].put(data)
+            # print(f"Data sent to listener {i}.")
         return
     
     
@@ -345,9 +354,12 @@ class SWCatcher:
     # My listener
     def detection_pipeline(self, proc_num: int):
         
+        self._negsw = []
+        
         while True:
             try:
                 data = self.data_queues[proc_num].get(block=True)  # Wait for data
+                # print(f"Listener {proc_num} got data.")
                 # for i in range(self.num_listeners):
                     # data = self.queues[i].get(block=True)  # Wait for data
                     # print(data)
@@ -404,14 +416,14 @@ class SWCatcher:
         # Compute the envelope of the data
         envp = envelope(data)
         
-        if phase == 'neg':
-            # peaks_range = neg_peaks_range
-            detect_peak = self.detect_neg_peak
-        elif phase == 'pos':
-            # peaks_range = pos_peaks_range
-            detect_peak = self.detect_pos_peak
+        # if phase == 'neg':
+        #     # peaks_range = neg_peaks_range
+        #     detect_peak = self.detect_neg_peak
+        # elif phase == 'pos':
+        #     # peaks_range = pos_peaks_range
+        #     detect_peak = self.detect_pos_peak
             
-        algorithms = [detect_peak, 
+        algorithms = [self.detect_neg_peak, 
                       self.detect_correlation, 
                       self.detect_distance, 
                       self.detect_phase]
@@ -441,64 +453,42 @@ class SWCatcher:
             t.join()
         
         results = queues
-        # results = []
-        # for i in range(len(algorithms)):
-        #     results.append(algorithms[i](*args[i]))
-            
-        # proc = []
-        # for i in range(len(algorithms)):
-        #     proc.append(multiprocessing.Process(target=algorithms[i], 
-        #                                         args=args[i]))
-        #     proc[i].start()
-        #     print(f"Process {i} started.")
-            
-        # # Retrieve the results
-        # results = []
-        # for q in queues:
-        #     try:
-        #         results.append(q.get())
-        #     except Exception as e:
-        #         print(f"Error occurred: {e}")
-            
-        
-        # # Run all the detections in parallel
-        # proc = []
-        # results = []
-        # with multiprocessing.Pool() as pool:
-        #     for alg, arg in zip(algorithms, args):
-        #         proc.append(pool.apply_async(alg, arg))
+
+        if phase == 'neg':
+            # Check if all the detections are True
+            if all([r[0] for r in results]):
+                # print('SW detected', proc_num, ':', results)
+                result = [roi, *results[-1], results[1][-1]]
+                # result = results
+                self.results_queues[proc_num].put(result)
+                # for _i, r in enumerate(result):
+                #     self.shared_results[proc_num][_i] = r
+            else:
+                result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                self.results_queues[proc_num].put(result)
+                # for _i, r in enumerate(result):
+                #     self.shared_results[proc_num][_i] = r
                 
-        #     # Retrieve the results
-        #     for p in proc:
-        #         try:
-        #             results.append(p.get())
-        #         except Exception as e:
-        #             print(f"Error occurred: {e}")
-            
-        # for p in proc:
-        #     p.join()
-            
-        # for r in results:
-        #     print(r)
-        
-        
-        # print('Correlation proc', proc_num, ':', results[1][1])
-        # if results[1][0] == True and results[3][0]==True:
-        #     print('Results', proc_num, ':', results)
-                
-        # Check if all the detections are True
-        if all([r[0] for r in results]):
-            # print('SW detected', proc_num, ':', results)
-            result = [roi, *results[-1], results[1][-1]]
-            # result = results
-            self.results_queues[proc_num].put(result)
-            # for _i, r in enumerate(result):
-            #     self.shared_results[proc_num][_i] = r
-        else:
-            result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
-            self.results_queues[proc_num].put(result)
-            # for _i, r in enumerate(result):
-            #     self.shared_results[proc_num][_i] = r
+        elif phase == 'pos':
+            if len(self._negsw) != 0:
+                if results[-1][0] is True:
+                    result = [roi, *results[-1], self._negsw[-1]]
+                    self.results_queues[proc_num].put(result)
+                    self._negsw = []
+                else:
+                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    self.results_queues[proc_num].put(result)
+            else:
+                # Check if hte first 3 detections are True
+                if all([r[0] for r in results[:-1]]):
+                    # if they are True, set a temporary variable to True
+                    self._negsw.append(results[1][-1])
+                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    self.results_queues[proc_num].put(result)
+                    # print('Down phase of SW detected', proc_num, ':', results)
+                else:
+                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    self.results_queues[proc_num].put(result)
             
         # self.shared_results[proc_num] = result
         # self.shared_results[proc_num] = *(True, 1, 1, 1)

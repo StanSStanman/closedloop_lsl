@@ -13,11 +13,14 @@ PACKAGE_DATA = {}
 INSTALL_REQUIRES = [
     "numpy",
     "scipy",
-    "xarray",
     "matplotlib",
-    "mne_lsl",
     "numba",
-    "joblib",
+    "xarray==2025.1.2"
+    "mne_lsl==1.8.0",
+    "pandas==2.2.3",
+    "h5py==3.12.1",
+    "pygame==2.6.1",
+    "sounddevice==0.5.1"
 ]
 
 PACKAGES = []

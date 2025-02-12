@@ -262,3 +262,6 @@ share
 *.fif
 *.txt
 *.sh
+old_stuff
+data
+fonts

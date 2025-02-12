@@ -11,3 +11,9 @@ You should install on your computer Python >= 3.10 and the following libraires:
 - matplotlib
 - mne
 - 
+
+
+passagess
+wxPython
+sudo apt install libxcb-cursor0
+psychopy 

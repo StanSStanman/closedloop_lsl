@@ -57,13 +57,13 @@ def dreamquestrc(subject_id, session, sex, fs=44100):
     spk_idx = [dev['name'] for dev in sd.query_devices()].index(spk)
     mic_idx = [dev['name'] for dev in sd.query_devices()].index(mic)
     
-    sd.default.device = [spk_idx, mic_idx]
+    sd.default.device = [mic_idx, spk_idx]
     # sd.default.samplerate = fs
     n_input_ch = sd.query_devices(mic_idx)['max_input_channels']
     max_answ_len = 60 * 15 # 15 minutes of recording
     
-    questions_path = '/home/jerry/python_projects/space/closedloop_lsl/data/sounds/questions'
-    output_path = '/home/jerry/closedloop_results'
+    questions_path = '/home/phantasos/python_projects/space/closedloop_lsl/data/sounds/questions'
+    output_path = '/home/phantasos/closedloop_results'
 
     files = ['qst01', 'qst02_1', 'qst02_2', 'qst02_3', 'qst03', 'qst04', 
              'qst05', 'qst05_1', 'qst06', 'qst07', 'qst08', 'qst09', 'qst10', 

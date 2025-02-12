@@ -15,6 +15,7 @@ INSTALL_REQUIRES = [
     "scipy",
     "matplotlib",
     "numba",
+    "pyserial==3.5",
     "xarray==2025.1.2",
     "mne_lsl==1.8.0",
     "pandas==2.2.3",

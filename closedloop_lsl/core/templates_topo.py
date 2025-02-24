@@ -3,29 +3,37 @@ import xarray as xr
 
 class TopoTemplates:
     
-    def __init__(self, template_fnames: list, rois: list, phases: list):
+    def __init__(self):
+    # def __init__(self, template_fnames: list, rois: list, phases: list):
         
-        self.template_fnames = template_fnames
-        self.rois = rois
-        self.phases = phases
+        # self.template_fnames = template_fnames
+        # self.rois = rois
+        # self.phases = phases
         return
     
     
-    def load_templates(self):
+    def load_templates(self, topo_fname: str):
+        
+        topographies = xr.load_dataarray(topo_fname)
         
         templates = {}
-        for template_fname, roi, phase in zip(self.template_fnames, self.rois, self.phases):
-            template = xr.load_dataarray(template_fname).values
-            templates[f'{roi}_{phase}'] = template
+        for roi in topographies.rois:
+            roi = str(roi.values)
+            templates[roi] = topographies.sel(rois=[roi])
             
         self.templates = templates
+        print("Templates loaded.")
         return
     
     
-    def select_templates(self, roi: list, phase: list):
+    def select_templates(self, roi: str, phase: str, twin: tuple=(-.025, .0)):
         
         selected_templates = []
-        for r, p in zip(roi, phase):
-            selected_templates.append([self.templates[f'{r}_{p}'], r, p])
-        self.select_templates = selected_templates
+        for t in self.templates.keys():
+            if roi in t:
+                vals = self.templates[t].sel(times=slice(*twin)).mean('times').values.squeeze()
+                selected_templates.append([vals, t, phase])
+                print("Templates selected: ", selected_templates[-1][1], 
+                      selected_templates[-1][-1])
+        self.selected_templates = selected_templates
         return selected_templates

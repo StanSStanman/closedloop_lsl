@@ -1,9 +1,11 @@
 import time
 import numpy as np
+import scipy.signal as ss
 from psychopy import gui
 import os
 import shutil
 import platform
+import threading
 
 
 def high_precision_sleep(duration: float) -> None:
@@ -24,7 +26,7 @@ def high_precision_sleep(duration: float) -> None:
             time.sleep(0.8 * remaining_time)
 
 
-def envelope(data: np.ndarray, n_excl: int=1, n_kept: int=3)-> np.ndarray:
+def envelope(data: np.ndarray, n_excl: int=1, n_kept: int=3, center: bool=True)-> np.ndarray:
     """
     Calculate the envelope of the data.
     
@@ -42,16 +44,57 @@ def envelope(data: np.ndarray, n_excl: int=1, n_kept: int=3)-> np.ndarray:
     envp : np.ndarray
         The envelope of the data.
     """
-    data = np.sort(data, axis=0, kind='quicksort')
+    dt = np.sort(data, axis=0, kind='quicksort')
     # data = np.sort(data, axis=0, kind='stable')
-    envp = np.mean(data[n_excl:n_excl+n_kept, :], axis=0, keepdims=True)
+    envp = np.mean(dt[n_excl:n_excl+n_kept, :], axis=0, keepdims=True)
+    
+    # Center envelope around 0
+    if center:
+        # envp -= np.mean(data)
+        envp -= np.mean(envp)
     
     return envp
 
 
+def moving_envp(data: np.ndarray, n_excl: int=1, n_kept: int=3, 
+                ntp: int=1000, center: bool=True, idx: list=[])-> np.ndarray:
+    if len(idx) == 0:
+        idx = np.argsort(np.min(data[:, -ntp:], axis=1))[n_excl:n_excl+n_kept]
+    # # compute minima across channels
+    # mins = np.min(data[:, -ntp:], axis=1)
+    # # check which are the channels with the lowest minima
+    # idx = np.argsort(mins)
+    # # get the indices of the channels to keep
+    # idx = idx[n_excl:n_excl+n_kept]
+    # average the corresponding channels
+    envp = np.mean(data[idx], axis=0, keepdims=True)
+    
+    if center:
+        envp = ss.detrend(envp, axis=1)
+        
+    return envp, idx
+        
+
+def gfp(data):
+    """
+    Calculate the global field power of the data.
+    
+    Parameters
+    ----------
+    data : np.ndarray
+        The data to calculate the global field power.
+        
+    Returns
+    -------
+    gfp : np.ndarray
+        The global field power of the data.
+    """
+    return np.std(data, axis=0)
+
+
 def get_participant_info():
     dlg = gui.Dlg(title='Welcome to Closed-Loop LSL')
-    dlg.addField("Participant ID:")
+    dlg.addField("Participant ID:", initial='CL0')
     dlg.addField("Session:", choices=['N1', 'N2', 'N3'])
     dlg.addField("Gender", choices=['Male', 'Female'])
 
@@ -94,4 +137,25 @@ def install_font(font_path):
     elif system == 'Darwin':
         print('Please restart your computer to complete the font installation.')
         
+    return
+
+
+def collect_data(data, streamer, results, fname):
+    
+    def _collect_data(data, streamer, results, fname):
+        det_time = data.times[-1]
+        data_next = streamer.get_data()
+        data = data.combine_first(data_next)
+        attributes = {'roi': results[0][0],
+                      'detection_time': det_time,
+                      'sw_freq': results[0][2],
+                      'next_sw': results[0][3],
+                      'sw_corr': results[0][4]}
+        data.assign_attrs(attributes)
+        data.to_netcdf(fname) # save data
+    
+    t = threading.Thread(target=_collect_data, 
+                         args=(data, streamer, results, fname))
+    t.start()
+    
     return

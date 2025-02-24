@@ -12,8 +12,12 @@ import json
 import sounddevice as sd
 import scipy.io.wavfile as sw
 # from remedy.config.config import read_config
+from closedloop_lsl.config.config import read_config
 from closedloop_lsl.report.questlist import questlist
 # from remedy.utils.audio_recorder import save_recording_audio
+
+
+cfg = read_config()
 
 
 def colored_print(color, text):
@@ -31,8 +35,10 @@ def dreamquestrc(subject_id, session, sex, fs=44100):
     while True:
         dlg = gui.Dlg(title='Start questionnaire', labelButtonOK='Start', labelButtonCancel='Quit')
         dlg.addText('Select the audio devices and start the questionnaire.',)
-        dlg.addField('Speaker:', choices=[dev['name'] for dev in sd.query_devices()], initial='default')
-        dlg.addField('Microphone:', choices=[dev['name'] for dev in sd.query_devices()], initial='default')
+        dlg.addField('Speaker:', choices=[dev['name'] for dev in sd.query_devices()], 
+                     initial=cfg['DEVICES']['PlayRecDev'])
+        dlg.addField('Microphone:', choices=[dev['name'] for dev in sd.query_devices()], 
+                     initial=cfg['DEVICES']['PlayRecDev'])
         params = dlg.show()
         
         if dlg.OK:
@@ -62,9 +68,11 @@ def dreamquestrc(subject_id, session, sex, fs=44100):
     n_input_ch = sd.query_devices(mic_idx)['max_input_channels']
     max_answ_len = 60 * 15 # 15 minutes of recording
     
-    questions_path = '/home/phantasos/python_projects/space/closedloop_lsl/data/sounds/questions'
-    output_path = '/home/phantasos/closedloop_results'
-
+    questions_path = op.join(cfg['DEFAULT']['SoundsPath'], 'questions')
+    output_path = op.join(cfg['PATHS']['ResultsPath'], subject_id, session)
+    if not op.exists(output_path):
+        os.makedirs(output_path)
+    
     files = ['qst01', 'qst02_1', 'qst02_2', 'qst02_3', 'qst03', 'qst04', 
              'qst05', 'qst05_1', 'qst06', 'qst07', 'qst08', 'qst09', 'qst10', 
              'qst10_1', 'qst10_2', 'qst10_3', 'qst10_4', 'qst10_5',
@@ -265,24 +273,24 @@ def dreamquestrc(subject_id, session, sex, fs=44100):
         else:
             print("No data recorded.")
 
-    # data_to_save = {
-    #     "cdate": cdate,
-    #     "ctime": ctime,
-    #     "participant_id": subject_id,
-    #     "session": session,
-    #     "sex": sex,
-    #     "responses": {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in responses.items()}
-    # }
-    # foutname = os.path.join(outpath, f"RY{subject_id:03d}_N{session}_{cdate}_{ctime}.json")
-    # with open(foutname, 'w') as json_file:
-    #     json.dump(data_to_save, json_file, indent=4)
+    data_to_save = {
+        "cdate": cdate,
+        "ctime": ctime,
+        "participant_id": subject_id,
+        "session": session,
+        "sex": sex,
+        "responses": {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in responses.items()}
+    }
+    foutname = os.path.join(output_path, f"{subject_id}_{session}_{cdate}_{ctime}.json")
+    with open(foutname, 'w') as json_file:
+        json.dump(data_to_save, json_file, indent=4)
 
-    # if os.path.exists(foutname):
-    #     print(f"JSON file created: {foutname}")
-    # else:
-    #     print("Error: JSON file NOT created")
+    if os.path.exists(foutname):
+        print(f"JSON file created: {foutname}")
+    else:
+        print("Error: JSON file NOT created")
     
     return
 
 if __name__ == "__main__":
-    dreamquestrc('mario', 'c4', 'Male')
+    dreamquestrc('Mario', 'N1', 'Male')

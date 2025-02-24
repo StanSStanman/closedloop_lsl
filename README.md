@@ -1,4 +1,5 @@
-# closedloop
+# LOOPAN
+## c**L**osedloop for t**O**p**O**graphic **P**hase-locked **A**coustic **N**eurostimulation
 Closed-loop system for online slow oscillations detection on EEG data and timed stimulation delivery.
 
 Testing dataset can be found at: https://archive.physionet.org/physiobank/database/capslpdb/

@@ -1,5 +1,5 @@
 from closedloop_lsl.core.stimulation import Stimulator
-from closedloop_lsl.utils.utils import high_precision_sleep
+from closedloop_lsl.utils.utils import high_precision_sleep, envelope, gfp
 import time
 import pygame
 

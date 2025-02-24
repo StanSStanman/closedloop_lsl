@@ -6,7 +6,7 @@ from typing import Tuple
 import multiprocessing
 import threading
 
-from closedloop_lsl.utils.utils import envelope
+from closedloop_lsl.utils.utils import envelope, moving_envp
 
 
 class SWCatcher:
@@ -100,7 +100,7 @@ class SWCatcher:
         
         # Return True if the last sample is in the range and 
         # the signal amplitude is still decreasing
-        return is_in_range and is_decreasing
+        return # is_in_range and is_decreasing
     
 
     def detect_pos_peak(self, data: np.ndarray, q)->bool:
@@ -137,11 +137,12 @@ class SWCatcher:
         is_increasing = np.all(samples_sign[-self.stable_increase_samples:] == 1)
         
         # q.put(is_in_range and is_increasing)
-        q[0] = is_in_range and is_increasing
+        # q[4] = is_in_range and is_increasing
+        q[1] = (is_in_range and is_increasing, last_samp_amp, is_increasing)
         
         # Return True if the last sample is in the range and
         # the signal amplitude is still increasing
-        return is_in_range and is_increasing
+        return # is_in_range and is_increasing
 
 
     def detect_correlation(self, data: np.ndarray, template: np.ndarray, q)->bool:
@@ -181,7 +182,7 @@ class SWCatcher:
         is_increasing = np.all(corr_sign[-self.stable_increase_samples:] == 1)
         
         # q.put((is_high_corr and is_increasing, corr[-1]))
-        q[1] = (is_high_corr and is_increasing, corr[-1])
+        q[2] = (is_high_corr and is_increasing, corr[-1])
         
         # Return True if the last correlation value is above the threshold and
         # the correlation is still increasing
@@ -223,7 +224,7 @@ class SWCatcher:
         is_decreasing = np.all(dist_sign[-self.stable_decrease_samples:] == -1)
         
         # q.put((is_low_dist and is_decreasing, dist[-1]))
-        q[2] = (is_low_dist and is_decreasing, dist[-1])
+        q[3] = (is_low_dist and is_decreasing, dist[-1])
         
         # Return True if the last distance value is below the threshold and
         # the distance is still decreasing
@@ -252,15 +253,19 @@ class SWCatcher:
         
         # Add assertion check for data shape
         
+        # Calculate lenght of the padding
+        pad_len = int(0.05 * self.sfreq)
+        
         # Compute the Hilbert transform and the angle of the data
-        hilb_data = sp.signal.hilbert(data).squeeze()
-        angle_data = np.angle(hilb_data)
+        dt = np.pad(data.squeeze(), (0, pad_len), 'edge')
+        hilb_data = sp.signal.hilbert(dt).squeeze()
+        angle_data = np.angle(hilb_data)[:-50]
         
         # Compute zero crossings of the angle
         angle_diff = np.diff(np.sign(angle_data))
         zero_crossings = np.where(np.logical_or(angle_diff==2, angle_diff==-2))[0]
         zero_crossings += 1 # need to exclude the very same timepoint of zerocrossing
-        
+
         monotonic_data = angle_data[zero_crossings[-1]:]
         
         # Check if the signs of the angle from the last zero crossing to the last sample are all positive or all negative
@@ -287,8 +292,8 @@ class SWCatcher:
         n_samp = len(angle_data) - zero_crossings[-1]
         sw_freq = (self.sfreq / (n_samp * 2))
         
-        if not 0.5 < sw_freq < 4:
-            is_phase = False         # THIS IS A STRONG ASSUMPTION, MAKE SURE IT DOESN'T AFFECT THE DETECTION
+        # if not (0.5 < sw_freq < 4):
+        #     is_phase = False         # THIS IS A STRONG ASSUMPTION, MAKE SURE IT DOESN'T AFFECT THE DETECTION
         
         # Compute the possible number of samples to the next up-phase
         if phase == 'pos':
@@ -297,11 +302,33 @@ class SWCatcher:
             next_target = 0
             
         # q.put((is_phase, sw_freq, next_target))
-        q[3] = (is_phase, sw_freq, next_target)
+        if phase == 'neg':
+            q[4] = (is_phase, sw_freq, next_target)
+        elif phase == 'pos':
+            q[5] = (is_phase, sw_freq, next_target)
+        else:
+            raise ValueError("Phase must be 'neg' or 'pos'.")
         
         # Return the phase of the slow wave, the slow wave frequency, and the
         # possible number of samples to the next up-phase
-        return (is_phase, sw_freq, next_target)
+        return # (is_phase, sw_freq, next_target)
+    
+    
+    def adjust_similarities(self, direction: str='down', 
+                            min_corr: float=0.7, min_dist: float=0.15):
+        if direction == 'down':
+            if self.correlation_threshold > min_corr:
+                self.correlation_threshold -= 0.02
+                # print(f'New correlation threshold: {self.correlation_threshold}')
+            if self.distance_threshold < min_dist:
+                self.distance_threshold += 0.01
+                # print(f'New distance threshold: {self.distance_threshold}')
+        elif direction == 'up':
+            self.correlation_threshold += 0.02
+            # print(f'New correlation threshold: {self.correlation_threshold}')
+            self.distance_threshold -= 0.01
+            # print(f'New distance threshold: {self.distance_threshold}')
+        return
 
 
     def set_data(self, data: np.ndarray):
@@ -354,7 +381,11 @@ class SWCatcher:
     # My listener
     def detection_pipeline(self, proc_num: int):
         
-        self._negsw = []
+        self._negsw, self._idx, self._nopos = ([], [], 0)
+        # Initialize timer to change similarity thresholds after 60 seconds if a SW did not occur
+        self.sw_detected = False
+        change_after = 60.
+        _adjust_timer = time.time()
         
         while True:
             try:
@@ -371,6 +402,13 @@ class SWCatcher:
                 self._detection_pipeline(data, 
                                          self.templates[proc_num],
                                          proc_num=proc_num)
+                if time.time() - _adjust_timer > change_after:
+                    if self.sw_detected is False:
+                        self.adjust_similarities(direction='down')
+                    elif self.sw_detected is True:
+                        self.adjust_similarities(direction='up')
+                    _adjust_timer = time.time()
+                    self.sw_detected = False
             except Exception as e:
                 print(f"Error: {e}")
                 
@@ -406,15 +444,16 @@ class SWCatcher:
             and the possible number of samples to the next up-phase.
         """
         
-        start = time.time()
-        
+        # start = time.time()
         target, roi, phase = template
         
         # last_tp = data.times.values[-1]
         # data = data.values
-        
         # Compute the envelope of the data
-        envp = envelope(data)
+        # envp = envelope(data, n_excl=1, n_kept=3, center=True)
+        envp, idx = moving_envp(data, n_excl=1, n_kept=3,
+                                ntp=750, center=True, idx=self._idx)
+        # print(envp)
         
         # if phase == 'neg':
         #     # peaks_range = neg_peaks_range
@@ -422,27 +461,42 @@ class SWCatcher:
         # elif phase == 'pos':
         #     # peaks_range = pos_peaks_range
         #     detect_peak = self.detect_pos_peak
-            
-        algorithms = [self.detect_neg_peak, 
+        
+        # The good stuff
+        # algorithms = [self.detect_neg_peak,
+        #               self.detect_correlation, 
+        #               self.detect_distance, 
+        #               self.detect_phase,
+        #               self.detect_pos_peak]
+        
+        # queues = [None, None, None, None, None]
+        
+        # args = [(envp, queues),
+        #         (data, target, queues), 
+        #         (data, target, queues), 
+        #         (envp, phase, queues),
+        #         (envp, queues)]
+        
+        algorithms = [self.detect_neg_peak,
+                      self.detect_pos_peak,
                       self.detect_correlation, 
                       self.detect_distance, 
+                      self.detect_phase,
                       self.detect_phase]
         
-        # queues = [multiprocessing.Queue() for i in range(len(algorithms))]
-        # args = [(envp, queues[0]), 
-        #         (data, target, queues[1]), 
-        #         (data, target, queues[2]), 
-        #         (envp, phase, queues[3])]
+        queues = [None, None, None, None, None, None]
         
-        queues = [None, None, None, None]
-        
-        args = [(envp, queues), 
-                (data, target, queues), 
-                (data, target, queues), 
-                (envp, phase, queues)]
+        args = [(envp, queues), # Negative peak detection
+                (envp, queues), # Positive peak detection
+                (data, target, queues), # Correlation
+                (data, target, queues), # Distance
+                (envp, 'neg', queues), # Negative phase detection
+                (envp, 'pos', queues)] # Positive phase detection
         
         threads = []
         for i in range(len(algorithms)):
+            # print(algorithms[i])
+            # print(args[i])
             threads.append(threading.Thread(target=algorithms[i], 
                                             args=args[i], 
                                             daemon=True))
@@ -453,42 +507,66 @@ class SWCatcher:
             t.join()
         
         results = queues
+        
+        # print(f"Results: {results}")
+        # for i, res in enumerate(results):
+        #     print(f"Result {i}: {res}, type: {type(res)}")
 
         if phase == 'neg':
+            # Take all boolean results for negative detection
+            check_sw = [results[0][0], results[2][0], results[3][0], results[4][0]]
             # Check if all the detections are True
-            if all([r[0] for r in results]):
+            if all(check_sw):
                 # print('SW detected', proc_num, ':', results)
-                result = [roi, *results[-1], results[1][-1]]
+                # result is composed of roi, neg phase deteciton and corr
+                result = [roi, *results[4], results[2][-1]] # !!!!! THIS IS THE CORRECT ONE
+                # result = [roi, *results[4], results[3][-1]] # !!!!! THIS IS FOR DEBUGGING
                 # result = results
                 self.results_queues[proc_num].put(result)
+                self.sw_detected = True
                 # for _i, r in enumerate(result):
                 #     self.shared_results[proc_num][_i] = r
             else:
-                result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                result = [roi, False, results[4][1], results[4][2], results[2][-1]] # !!!!! THIS IS THE CORRECT ONE
+                # result = [roi, False, results[4][1], results[4][2], results[3][-1]] # !!!!! THIS IS DEBUGGING
                 self.results_queues[proc_num].put(result)
                 # for _i, r in enumerate(result):
                 #     self.shared_results[proc_num][_i] = r
-                
+            
         elif phase == 'pos':
             if len(self._negsw) != 0:
-                if results[-1][0] is True:
-                    result = [roi, *results[-1], self._negsw[-1]]
+                # print((results[-2][0] and results[-1][0]))
+                # If postive peak and positive phase are detected
+                if (results[1][0] and results[5][0]):
+                    result = [roi, *results[5], self._negsw[-1]]
+                    # print(result)
                     self.results_queues[proc_num].put(result)
-                    self._negsw = []
+                    self._negsw, self._idx, self._nopos = ([], [], 0)
+                    # print('step 3 SW detected, and positive')
                 else:
-                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    result = [roi, False, results[5][1], results[5][2], results[2][-1]]
                     self.results_queues[proc_num].put(result)
+                    if self._nopos >= 15:
+                        self._negsw, self._idx, self._nopos = ([], [], 0)
+                    else:
+                        self._nopos += 1
+                    # print('step 2 SW but not positive')
             else:
-                # Check if hte first 3 detections are True
-                if all([r[0] for r in results[:-1]]):
+                # Check if a negative slow wave was detected
+                check_sw = [results[0][0], results[2][0], results[3][0], results[4][0]]
+                if all(check_sw):
                     # if they are True, set a temporary variable to True
-                    self._negsw.append(results[1][-1])
-                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    self._negsw.append(results[2][-1])
+                    result = [roi, False, results[5][1], results[5][2], results[2][-1]]
                     self.results_queues[proc_num].put(result)
+                    self._idx = idx
+                    self.sw_detected = True
+                    # print('step 1 find SW')
                     # print('Down phase of SW detected', proc_num, ':', results)
                 else:
-                    result = [roi, False, results[-1][1], results[-1][2], results[1][-1]]
+                    result = [roi, False, results[5][1], results[5][2], results[2][-1]]
                     self.results_queues[proc_num].put(result)
+                    # print('step 0 no SW')
             
         # self.shared_results[proc_num] = result
         # self.shared_results[proc_num] = *(True, 1, 1, 1)
@@ -508,7 +586,7 @@ if __name__ == '__main__':
     templates = [[np.random.uniform(0, 1, (64)), 'roi1', 'neg'],
                  [np.random.uniform(0, 1, (64)), 'roi1', 'neg']]
     
-    # templates = [[np.random.uniform(0, 1, (64)), 'roi1', 'neg']]
+    templates = [[np.random.uniform(0, 1, (64)), 'roi1', 'neg']]
     
     
     # Create a SWCatcher object
@@ -530,10 +608,12 @@ if __name__ == '__main__':
         # time.sleep(0.5)
         # Get the results
         results = sw_catcher.get_results() #THIS IS HANGING FOREVER SINCE THERE IS BLOCK = TRUE IN THE METHOD
-        print('Outern loop', results[0], results[1])
+        print('Outern loop', results)
         all_results.append(results)
         
         data = np.random.uniform(0, 1, (64, 2500))
+        if 500<i<1000:
+            data = np.repeat(templates[0][0][:, np.newaxis], 2500, axis=-1)
         # time.sleep(0.5)
     
     # Stop the slow wave detection

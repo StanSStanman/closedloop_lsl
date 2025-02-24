@@ -25,6 +25,8 @@ class ClosedLoopLSL:
         self.aquiring_data = False # multiprocessing.Value('b', False)
         self._aquire = False
         
+        self.ref_ch = None
+        
         self.process = None
         self.queue = None
         self.event = None
@@ -139,6 +141,28 @@ class ClosedLoopLSL:
         return
     
     
+    def set_reference_channels(self, ref_ch: Optional[List[int]] = None) -> None:
+        if ref_ch is None:
+            print('No reference channels set.')
+            return
+        else:
+            self.ref_ch = ref_ch
+            print('Reference channels set:', ref_ch)
+        return
+    
+    
+    def _set_ref(self, data: xr.DataArray) -> xr.DataArray:
+        # print('Setting reference...')
+        # print(data)
+        # print(data.shape)
+        # print(data.mean(dim='channels').shape)
+        if self.ref_ch is not None:
+            # print(data.sel(channels=self.ref_ch).mean(dim='channels').shape)
+            data = data - data.sel(channels=self.ref_ch).mean(dim='channels')
+        # print(data)
+        return data
+    
+    
     def start_acquisition(self, interval: float=.011, 
                           channels: list=list(range(64))) -> None:
         
@@ -155,7 +179,7 @@ class ClosedLoopLSL:
             t_next = t_start
             
             while self.aquiring_data:
-                high_precision_sleep(interval)
+                
                 # print('Cycling...')
                 
                 self.stream.acquire()
@@ -170,10 +194,13 @@ class ClosedLoopLSL:
                                       dims=('channels', 'times'))
                     da = da.sel(channels=channels)
                     
+                    da = self._set_ref(da)
+                    
                     while not self.queue.empty():
                         self.queue.get()
                     self.queue.put(da)
                     self.event.set()
+                high_precision_sleep(interval)
                 # high_precision_sleep(0.001)
                 
                 # t_next = t_next + interval

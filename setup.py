@@ -7,7 +7,7 @@ MAINTAINER_EMAIL = "ruggero.basanisi@imtlucca.it"
 URL = "https://github.com/StanSStanman/closedloop_lsl"
 LICENSE = "The Unlicense"
 DOWNLOAD_URL = "https://github.com/StanSStanman/closedloop_lsl"
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 PACKAGE_DATA = {}
 
 INSTALL_REQUIRES = [
@@ -20,6 +20,7 @@ INSTALL_REQUIRES = [
     "mne_lsl==1.8.0",
     "pandas==2.2.3",
     "h5py==3.12.1",
+    "netCDF4==1.7.2",
     "pygame==2.6.1",
     "sounddevice==0.5.1"
 ]

@@ -37,6 +37,9 @@ if __name__ == '__main__':
     
     # mne_lsl player /home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD010_N1_64-raw.fif -c 33 -n EE225-000000-000625
     
-    raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD010_N1_64-raw.fif']
+    # raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD010_N1_64-raw.fif']
+    # raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD006_N3_64-raw.fif']
+    # raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD019_N2_64-raw.fif']
+    raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD019_N2_64_mastoids-raw.fif']
     
     ampli_player(raw_fnames=raw_fnames)

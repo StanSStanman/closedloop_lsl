@@ -159,3 +159,20 @@ def collect_data(data, streamer, results, fname):
     t.start()
     
     return
+
+
+def generate_pink_noise(duration, volume=1, sample_rate=44100):
+    # Compute n. of samples
+    samples = int(duration * sample_rate)
+    # Generate white noise
+    white_noise = np.random.normal(0, 1, samples)
+    # Make filter for pink noise
+    b, a = ss.butter(1, 1.0, btype='lowpass', fs=sample_rate)
+    # Apply filter to obtain pink noise
+    pink_noise = ss.lfilter(b, a, white_noise)
+    # Normalize
+    pink_noise = pink_noise / np.max(np.abs(pink_noise))
+    # Adjust volume
+    pink_noise = pink_noise * volume
+    
+    return pink_noise

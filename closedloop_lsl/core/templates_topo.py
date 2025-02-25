@@ -26,6 +26,14 @@ class TopoTemplates:
         return
     
     
+    def del_channels(self, channels: list):
+        
+        for roi in self.templates.keys():
+            self.templates[roi] = self.templates[roi].drop_sel(channels=channels)
+        print('Channels', channels, 'deleted.')
+        return
+    
+    
     def select_templates(self, roi: str, phase: str, twin: tuple=(-.025, .0)):
         
         selected_templates = []

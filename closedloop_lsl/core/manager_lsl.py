@@ -16,7 +16,7 @@ from closedloop_lsl.utils.utils import high_precision_sleep
 
 class ClosedLoopLSL:
     
-    def __init__(self, sfreq) -> None:
+    def __init__(self, sfreq, ch_names=None, del_chans=None) -> None:
         self.sfreq = sfreq
         self.device = None
         self.stream = None
@@ -25,6 +25,8 @@ class ClosedLoopLSL:
         self.aquiring_data = False # multiprocessing.Value('b', False)
         self._aquire = False
         
+        self.ch_names = ch_names
+        self.del_chans = del_chans
         self.ref_ch = None
         
         self.process = None
@@ -173,7 +175,8 @@ class ClosedLoopLSL:
         print('Starting acquisition...')
         self.aquiring_data = True
         
-        def _acquire_data(interval: float, channels: list) -> None:
+        def _acquire_data(interval: float, channels: list) -> None:                
+            
             self._aquire = True
             t_start = time.perf_counter()
             t_next = t_start
@@ -188,11 +191,19 @@ class ClosedLoopLSL:
                     
                     _dt, _ts = self.stream.get_data()
                     
+                    if self.del_chans is not None:
+                        _dt = np.delete(_dt, self.del_chans, axis=0)
+                        
+                    if self.ch_names is None:
+                        _chn = list(range(_dt.shape[0]))
+                    else:
+                        _chn = self.ch_names
+                    
                     da = xr.DataArray(_dt, 
-                                      coords={'channels': range(_dt.shape[0]), 
+                                      coords={'channels': _chn, 
                                               'times': _ts}, 
                                       dims=('channels', 'times'))
-                    da = da.sel(channels=channels)
+                    # da = da.sel(channels=channels)
                     
                     da = self._set_ref(da)
                     
@@ -268,6 +279,9 @@ if __name__ == '__main__':
     
     streams_name = 'EE225-000000-000625'
     streams_type = 'eeg'
+    
+    # streams_name = 'EE225-020034-000627_on_MININT-A894NL4'
+    # streams_type = 'EEG'
     
     task = ClosedLoopLSL(sfreq=500.)
     

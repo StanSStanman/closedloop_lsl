@@ -34,6 +34,14 @@ class TopoTemplates:
         return
     
     
+    def reorder_channels(self, channels: list):
+        
+        for roi in self.templates.keys():
+            self.templates[roi] = self.templates[roi].sel(channels=channels)
+        print('Channels reordered.')
+        return
+    
+    
     def select_templates(self, roi: str, phase: str, twin: tuple=(-.025, .0)):
         
         selected_templates = []

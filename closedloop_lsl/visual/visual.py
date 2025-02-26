@@ -80,6 +80,7 @@ subintroText = visual.TextStim(mainWin, text=' Click on \'Start stream\' when th
 
 # Stream textbox
 streamTextbox = visual.TextBox2(mainWin, text='EE225-000000-000625', pos=(.2, .3), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
+# streamTextbox = visual.TextBox2(mainWin, text='EE225-020034-000625_on_MININT-A894NL4', pos=(.2, .3), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
 
 # Stream textbox label
 streamTlabel = visual.TextStim(mainWin, text='Stream name:', pos=(-.4, .3), height=0.07, font='Nimbus Sans', autoDraw=True)
@@ -374,7 +375,9 @@ while True:
                         interruptWin.flip()
                         stim_completed = True
                         stimtime = datetime.datetime.now().strftime("%H%M%S")
-                        collect_data(data, stream, res, op.join(participant_folder, f'{pc_id}_{sesison}_{stimtime}.nc'))
+                        collect_data(data, stream, res, stimtime,
+                                     op.join(participant_folder, 
+                                             f'{pc_id}_{sesison}_{stimtime}.nc'))
                         # Interrupt the stimulation if the button is pressed
                         while time.perf_counter() - start_stim_time < interrupt_time:
                             # st = time.time()

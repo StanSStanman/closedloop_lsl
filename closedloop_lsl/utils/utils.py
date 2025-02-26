@@ -140,9 +140,9 @@ def install_font(font_path):
     return
 
 
-def collect_data(data, streamer, results, fname):
+def collect_data(data, streamer, results, timestamp, fname):
     
-    def _collect_data(data, streamer, results, fname):
+    def _collect_data(data, streamer, results, timestamp, fname):
         det_time = data.times[-1]
         data_next = streamer.get_data()
         data = data.combine_first(data_next)
@@ -150,7 +150,8 @@ def collect_data(data, streamer, results, fname):
                       'detection_time': det_time,
                       'sw_freq': results[0][2],
                       'next_sw': results[0][3],
-                      'sw_corr': results[0][4]}
+                      'sw_corr': results[0][4],
+                      'timestamp': timestamp}
         data.assign_attrs(attributes)
         data.to_netcdf(fname) # save data
     

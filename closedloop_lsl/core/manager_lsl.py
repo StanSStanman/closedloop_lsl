@@ -190,9 +190,6 @@ class ClosedLoopLSL:
                 if self.stream.n_new_samples != 0:
                     
                     _dt, _ts = self.stream.get_data()
-                    
-                    if self.del_chans is not None:
-                        _dt = np.delete(_dt, self.del_chans, axis=0)
                         
                     if self.ch_names is None:
                         _chn = list(range(_dt.shape[0]))
@@ -204,6 +201,10 @@ class ClosedLoopLSL:
                                               'times': _ts}, 
                                       dims=('channels', 'times'))
                     # da = da.sel(channels=channels)
+                    
+                    if self.del_chans is not None:
+                        da = da.drop_sel(channels=self.del_chans)
+                        # _dt = np.delete(_dt, self.del_chans, axis=0)
                     
                     da = self._set_ref(da)
                     

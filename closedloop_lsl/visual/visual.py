@@ -47,10 +47,10 @@ else:
     warnings.warn(f'Participant {pc_id} already exists in the database. Check the data.', UserWarning)
 
 # Set sounds and triggers
-stim_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'beep.wav')
+stim_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'PN_44100Hz_50ms.wav')
 alarm_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'alarm.wav')
-trig_codes = {'cingulate-lh': 20, 'cingulate-rh': 22,
-              'occipital-lh': 30, 'occipital-rh': 32}
+trig_codes = {'cingulate-lh': 22, 'cingulate-rh': 24,
+              'occipital-lh': 32, 'occipital-rh': 34}
 
 # Load topographies
 
@@ -60,6 +60,7 @@ tp_dir = cfg['DEFAULT']['TemplatesPath']
 tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_64ch.nc')
 all_templates = TopoTemplates()
 all_templates.load_templates(tp_fname)
+all_templates.del_channels(['5Z'])
 # loaded_templates = xr.open_dataarray(tp_fname)
 # all_templates = {}
 # for roi in loaded_templates.rois.values:
@@ -85,7 +86,8 @@ streamTextbox = visual.TextBox2(mainWin, text='EE225-000000-000625', pos=(.2, .3
 streamTlabel = visual.TextStim(mainWin, text='Stream name:', pos=(-.4, .3), height=0.07, font='Nimbus Sans', autoDraw=True)
 
 # Stream type textbox
-strtypeTextbox = visual.TextBox2(mainWin, text='eeg', pos=(.2, .1), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
+# strtypeTextbox = visual.TextBox2(mainWin, text='eeg', pos=(.2, .1), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
+strtypeTextbox = visual.TextBox2(mainWin, text='EEG', pos=(.2, .1), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
 
 # Stream type textbox label
 strtypeLabel = visual.TextStim(mainWin, text='Stream type:', pos=(-.4, .1), height=0.07, font='Nimbus Sans', autoDraw=True)
@@ -126,7 +128,7 @@ while True:
             streams_name = streamTextbox.text
             streams_type = strtypeTextbox.text
             # Activate the stream
-            stream = ClosedLoopLSL(sfreq=500.)
+            stream = ClosedLoopLSL(sfreq=500, del_chans=[-1])
             stream.search_stream(sname=streams_name, stype=streams_type)
             streamInfoText.text = 'Stream found.'
             # streamInfoText.draw()
@@ -307,9 +309,9 @@ while True:
                 while not_really_sure_about_the_devices:
                     devsel = gui.Dlg(title='Select audio devices')
                     devsel.addField("Speakers device:", choices=sound_dev, 
-                                    initial=cfg['DEVICES']['Speakers'])
+                                    initial=cfg['DEVICES']['speakers'])
                     devsel.addField("Headphones device", choices=sound_dev, 
-                                    initial=cfg['DEVICES']['Headphones'])
+                                    initial=cfg['DEVICES']['headphones'])
                     # devsel.addField("Microphone device", choices=record_dev)
 
                     params = devsel.show()

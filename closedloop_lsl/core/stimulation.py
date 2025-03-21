@@ -2,10 +2,9 @@ import multiprocessing
 import threading
 import pygame
 import pygame._sdl2.audio as sdl2_audio
-import soundfile as sf
-from scipy.io import wavfile
 import time
-from parallel import Parallel
+# from parallel import Parallel
+from psychopy import parallel
 
 from typing import Tuple, Optional
 
@@ -107,7 +106,7 @@ class Stimulator:
     def _play_audio(self, sound: pygame.mixer.Sound, volume: Optional[float] = 1.0):
         if pygame.mixer.get_init is not None:
             sound = pygame.mixer.Sound(sound)
-            # sound.set_volume(volume)
+            sound.set_volume(volume)
             sound.play()
         else:
             print("Mixer not initialized!")
@@ -118,7 +117,11 @@ class Stimulator:
     def _init_parallel_port(self):
         if self.paraport is None:
             try:
-                self.paraport = Parallel()
+                # self.paraport = Parallel(port=0)
+                # self.paraport.setData(0)
+                self.paraport = parallel.ParallelPort(address=0)
+                self.paraport.setData(0)
+                high_precision_sleep(0.005)
                 print("Parallel port opened")
             except Exception as e:
                 self.paraport = None
@@ -142,8 +145,9 @@ class Stimulator:
         
         def _set_trigger(code):
             self.paraport.setData(code)
-            high_precision_sleep(0.02)
+            high_precision_sleep(0.005)
             self.paraport.setData(0)
+            high_precision_sleep(0.005)
             print(f"Trigger sent: {code}")
             return
         
@@ -211,7 +215,7 @@ class Stimulator:
                 if not self.stim_stopped_by_user:
                 # threading.Thread(target=self._play_audio, args=(self.stim_file,), kwargs={'volume': .1}, daemon=True).start()
                     # self._play_audio(self.stim_file, volume=1.)
-                    self._play_audio(self.stim_sound, volume=1.)
+                    self._play_audio(self.stim_sound, volume=.15)
                     self._send_trigger(self.trig_codes[detection[0]])
                     return
             else:
@@ -261,6 +265,7 @@ class Stimulator:
                     if self.stim_stopped_by_user:
                         running_stim = False
                         break
+                    high_precision_sleep(0.001)
                 print(f"Total stimulation time:", time.perf_counter() - stimulation_starts)
                 a0 = time.perf_counter()
                 if play_alarm:
@@ -272,6 +277,8 @@ class Stimulator:
                         pass
                     # questionnaire()
                     self._init_mixer('headphones')
+                else:
+                    self._send_trigger(0)
                 print('Alarm time:', time.perf_counter() - a0)
                 self.is_stimulating = False
                 
@@ -295,14 +302,14 @@ if __name__ == '__main__':
                             trig_codes=trig_codes)
     sound_dev = stimulator.get_devices()
     print(sound_dev)
-    stimulator.set_devices(speakers=sound_dev[4], headphones=sound_dev[0])
+    stimulator.set_devices(speakers=sound_dev[4], headphones=sound_dev[7])
     # stimulator.set_devices(speakers=sound_dev[1], headphones=sound_dev[-1])
     stimulator.start()
     
     high_precision_sleep(5)
     print('waited 5 seconds')
     
-    for i in range(1000):
+    for i in range(100):
         start_single_stim = time.time()
         stimulus = ['cingulate-rh', True, 0.746268656716418, 0, 0.9239749460737329]
         stimulator.send_stim(stimulus)
@@ -310,7 +317,7 @@ if __name__ == '__main__':
         high_precision_sleep(0.25)
         stimulator.stop_stimulation()
         print('Single stim time:', end_single_stim - start_single_stim)
-        high_precision_sleep(.2)
+        high_precision_sleep(.25)
     stimulator.send_stim(stimulus)
     
     # high_precision_sleep(10)

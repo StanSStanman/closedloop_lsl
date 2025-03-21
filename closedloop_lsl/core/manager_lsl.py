@@ -186,8 +186,10 @@ class ClosedLoopLSL:
                 # print('Cycling...')
                 
                 self.stream.acquire()
-                
-                if self.stream.n_new_samples != 0:
+                # print(self.stream.n_new_samples)
+                # if self.stream.n_new_samples != 0:
+                if self.stream.n_new_samples >= 10:  # Avoid taking chunks shorter than 10 points (20ms)
+                    # print(self.stream.n_new_samples)
                     
                     _dt, _ts = self.stream.get_data()
                         
@@ -212,6 +214,8 @@ class ClosedLoopLSL:
                         self.queue.get()
                     self.queue.put(da)
                     self.event.set()
+                    # print('Inner cycle time:', time.perf_counter() - t_start)
+                    # t_start = time.perf_counter()
                 high_precision_sleep(interval)
                 # high_precision_sleep(0.001)
                 

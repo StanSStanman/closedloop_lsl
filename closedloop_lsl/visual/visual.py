@@ -316,12 +316,12 @@ while True:
                 
                 # Initialize the detector
                 sw_catcher = SWCatcher(sfreq=500, 
-                    stable_decrease_time=0.04, 
-                    stable_increase_time=0.02,
-                    neg_peaks_range=(-80e-6, -30e-6),
-                    pos_peaks_range=(5e-6, 40e-6),
-                    correlation_threshold=0.95,
-                    distance_threshold=0.05)
+                                       stable_decrease_time=0.04, 
+                                       stable_increase_time=0.02,
+                                       neg_peaks_range=(-80e-6, -30e-6),
+                                       pos_peaks_range=(5e-6, 40e-6),
+                                       correlation_threshold=0.95,
+                                       distance_threshold=0.05)
                 # Set the templates
                 sw_catcher.set_templates(templates)
                 # Start the slow wave detection
@@ -389,7 +389,7 @@ while True:
                     res = sw_catcher.get_results()
                     # Check if one topography corresponds to a SW
                     if res[0][1] is True or res[-1][1] is True:
-                        print('SW detected', res)  
+                        print('SW detected', res)
                         
                         # Chose the most correlated topography
                         if not stimulator.is_stimulating:

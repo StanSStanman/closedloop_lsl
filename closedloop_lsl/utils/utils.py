@@ -156,7 +156,7 @@ def collect_data(data, streamer, results, timestamp, fname):
         data.to_netcdf(fname) # save data
     
     t = threading.Thread(target=_collect_data, 
-                         args=(data, streamer, results, fname))
+                         args=(data, streamer, results, timestamp, fname))
     t.start()
     
     return

@@ -6,6 +6,7 @@ import os
 import shutil
 import platform
 import threading
+# from numba import njit
 
 
 def high_precision_sleep(duration: float) -> None:
@@ -72,6 +73,14 @@ def moving_envp(data: np.ndarray, n_excl: int=1, n_kept: int=3,
     if center:
         envp = ss.detrend(envp, axis=1)
         
+    return envp, idx
+
+
+def temp_envp(data: np.ndarray, template: np.ndarray, n_chans: int=3, center: bool=True)-> np.ndarray:
+    idx = np.argsort(np.min(template))[:n_chans]
+    envp = np.mean(data[idx], axis=0, keepdims=True)
+    if center:
+        envp = ss.detrend(envp, axis=1)
     return envp, idx
         
 
@@ -143,7 +152,8 @@ def install_font(font_path):
 def collect_data(data, streamer, results, timestamp, fname):
     
     def _collect_data(data, streamer, results, timestamp, fname):
-        det_time = data.times[-1]
+        det_time = data.times[-1].values
+        high_precision_sleep(2.)
         data_next = streamer.get_data()
         data = data.combine_first(data_next)
         attributes = {'roi': results[0][0],
@@ -152,11 +162,11 @@ def collect_data(data, streamer, results, timestamp, fname):
                       'next_sw': results[0][3],
                       'sw_corr': results[0][4],
                       'timestamp': timestamp}
-        data.assign_attrs(attributes)
+        data = data.assign_attrs(attributes)
         data.to_netcdf(fname) # save data
     
     t = threading.Thread(target=_collect_data, 
-                         args=(data, streamer, results, fname))
+                         args=(data, streamer, results, timestamp, fname))
     t.start()
     
     return
@@ -177,3 +187,9 @@ def generate_pink_noise(duration, volume=1, sample_rate=44100):
     pink_noise = pink_noise * volume
     
     return pink_noise
+
+
+# @njit
+# def laplacian(data, alpha, L):
+#     data = data - alpha * (L @ data)
+#     return data

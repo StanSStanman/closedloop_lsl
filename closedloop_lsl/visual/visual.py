@@ -22,6 +22,8 @@ from closedloop_lsl.utils.utils import high_precision_sleep, get_participant_inf
 # Visualisation and interaction
 from psychopy import monitors, visual, event, core, gui
 
+# Set environmental variable for driver selection
+os.environ['SDL_AUDIODRIVER'] = 'alsa'
 
 # Set the configuration
 cfg = read_config()
@@ -52,6 +54,21 @@ alarm_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'alarm.wav')
 trig_codes = {'cingulate-lh': 22, 'cingulate-rh': 24,
               'occipital-lh': 32, 'occipital-rh': 34}
 
+eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+                '1LB', '1RB', '2L', '2R', '3L', '3R', 
+                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z', 'EOG',
+                '10L', '10R', '9L', '9R', '8L', '8R', 
+                '7L', '7R', '6L', '6R', '5L', '5R', 
+                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+                '4LB', '4RB', 'BIP1', 'BIP2', 'BIP3',
+                'TRIG1', 'TRIG2']
+
+deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
+
 # Load topographies
 
 # MAYBE IT IS BETTER TO REPLACE ALL OF THAT WITH DICTONARY
@@ -60,6 +77,17 @@ tp_dir = cfg['DEFAULT']['TemplatesPath']
 tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_64ch.nc')
 all_templates = TopoTemplates()
 all_templates.load_templates(tp_fname)
+all_templates.reorder_channels(['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+                                '1LB', '1RB', '2L', '2R', '3L', '3R', 
+                                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+                                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+                                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+                                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z',
+                                '10L', '10R', '9L', '9R', '8L', '8R', 
+                                '7L', '7R', '6L', '6R', '5L', '5R', 
+                                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+                                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+                                '4LB', '4RB', '5Z'])
 all_templates.del_channels(['5Z'])
 # loaded_templates = xr.open_dataarray(tp_fname)
 # all_templates = {}
@@ -128,7 +156,9 @@ while True:
             streams_name = streamTextbox.text
             streams_type = strtypeTextbox.text
             # Activate the stream
-            stream = ClosedLoopLSL(sfreq=500, del_chans=[-1])
+            stream = ClosedLoopLSL(sfreq=500, 
+                                   ch_names=eeg_channels, 
+                                   del_chans=deleted_channels)
             stream.search_stream(sname=streams_name, stype=streams_type)
             streamInfoText.text = 'Stream found.'
             # streamInfoText.draw()
@@ -148,7 +178,7 @@ while True:
             mainWin.flip()
             
             stream.apply_filter(low_freq=.5, high_freq=4)
-            stream.set_reference_channels([31, 32])
+            stream.set_reference_channels(['3LD', '3RD'])
             stream.start_acquisition(interval=0.001)
             streamInfoText.text = 'Stream active.'
             # streamInfoText.draw()

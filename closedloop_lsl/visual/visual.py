@@ -383,7 +383,7 @@ while True:
                 running = True
                 while running:
 
-                    # cycle_time_start = time.time()
+                    # cycle_time_start = time.perf_counter()
                     data = stream.get_data()
                     sw_catcher.set_data(data.values)
                     res = sw_catcher.get_results()
@@ -476,7 +476,7 @@ while True:
                         high_precision_sleep(1.)
                         break
                     
-                    # cycle_time_end = time.time()
+                    # cycle_time_end = time.perf_counter()
                     # print('Cycle time:', cycle_time_end - cycle_time_start)
             
             # Stop detection and close detection window

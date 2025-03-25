@@ -3,8 +3,9 @@ import os
 import os.path as op
 import time
 import datetime
-import numpy as np
-import xarray as xr
+# import numpy as np
+# import xarray as xr
+import mne
 import signal
 import subprocess
 import pyglet
@@ -177,7 +178,13 @@ while True:
             # iter_draw(groupObjMain)
             mainWin.flip()
             
-            stream.apply_filter(low_freq=.5, high_freq=4)
+            params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
+            iir_params = mne.filter.construct_iir_filter(params, 
+                                                        f_pass=[.5, 4.], 
+                                                        f_stop=[.1, 10.], 
+                                                        sfreq=500., 
+                                                        btype='bandpass')
+            stream.apply_filter(low_freq=.5, high_freq=4., iir_params=iir_params)
             stream.set_reference_channels(['3LD', '3RD'])
             stream.start_acquisition(interval=0.001)
             streamInfoText.text = 'Stream active.'

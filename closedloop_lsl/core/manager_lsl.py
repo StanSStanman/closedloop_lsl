@@ -136,9 +136,17 @@ class ClosedLoopLSL:
     
     
     def apply_filter(self, low_freq: float = .5, 
-                     high_freq: float = 4.) -> None:
+                     high_freq: float = 4., 
+                     iir_params=None) -> None:
         
-        self.stream.filter(low_freq, high_freq, iir_params=None)
+        # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
+        # iir_params = mne.filter.construct_iir_filter(params, 
+        #                                              f_pass=[.5, 4.], 
+        #                                              f_stop=[.1, 10.], 
+        #                                              sfreq=500., 
+        #                                              btype='bandpass')
+        self.stream.filter(low_freq, high_freq, iir_params=iir_params)        
+        # self.stream.filter(low_freq, high_freq, iir_params=None)
         print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
         return
     

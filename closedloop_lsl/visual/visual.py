@@ -70,6 +70,8 @@ eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R',
 
 # deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
 deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG2']
+# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
+deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG2']
 
 # Load topographies
 
@@ -167,7 +169,7 @@ while True:
             # iter_draw(groupObjMain)
             mainWin.flip()
             
-            stream.open_stream(bufsize=5.)
+            stream.open_stream(bufsize=10.)
             streamInfoText.text = 'Stream opened.'
             # streamInfoText.draw()
             # iter_draw(groupObjMain)
@@ -179,15 +181,16 @@ while True:
             # iter_draw(groupObjMain)
             mainWin.flip()
             
-            # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
+            # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'sos'}
             # iir_params = mne.filter.construct_iir_filter(params, 
             #                                             f_pass=[.5, 4.], 
             #                                             f_stop=[.1, 10.], 
             #                                             sfreq=500., 
             #                                             btype='bandpass')
-            iir_params = dict(order=4, ftype='butter', output='sos')
-            stream.apply_filter(low_freq=.5, high_freq=4.,
-                                picks=slice(0, 64), iir_params=iir_params)
+            iir_params = None
+            stream.apply_filter(low_freq=.5, high_freq=4., 
+                                picks=slice(0, 64),
+                                iir_params=iir_params)
             stream.set_reference_channels(['3LD', '3RD'])
             stream.start_acquisition(interval=0.001)
             streamInfoText.text = 'Stream active.'
@@ -393,9 +396,9 @@ while True:
                 running = True
                 while running:
 
-                    # cycle_time_start = time.perf_counter()
+                    cycle_time_start = time.perf_counter()
                     data = stream.get_data()
-                    sw_catcher.set_data(data.copy().drop_sel({'channels': 'TRIG1'}).values)
+                    sw_catcher.set_data(data.copy().drop_sel({'channels': ['TRIG1']}).values)
                     res = sw_catcher.get_results()
                     # Check if one topography corresponds to a SW
                     if res[0][1] is True or res[-1][1] is True:
@@ -486,8 +489,8 @@ while True:
                         high_precision_sleep(1.)
                         break
                     
-                    # cycle_time_end = time.perf_counter()
-                    # print('Cycle time:', cycle_time_end - cycle_time_start)
+                    cycle_time_end = time.perf_counter()
+                    print('Cycle time:', cycle_time_end - cycle_time_start)
             
             # Stop detection and close detection window
             elif detectMouse.isPressedIn(stopDetectButton):

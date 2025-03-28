@@ -42,4 +42,4 @@ if __name__ == '__main__':
     # raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD019_N2_64-raw.fif']
     raw_fnames = ['/home/jerry/python_projects/space/closedloop/test_data/TweakDreams/TD019_N2_64_mastoids-raw.fif']
     
-    ampli_player(raw_fnames=raw_fnames)
+    ampli_player(raw_fnames=raw_fnames, n_repeat=1)

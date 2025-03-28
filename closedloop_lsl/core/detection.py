@@ -452,7 +452,7 @@ class SWCatcher:
         # Compute the envelope of the data
         # envp = envelope(data, n_excl=1, n_kept=3, center=True)
         envp, idx = moving_envp(data, n_excl=1, n_kept=3,
-                                ntp=750, center=True, idx=self._idx)
+                                ntp=750, center=False, idx=self._idx)
         # print(envp)
         
         # if phase == 'neg':

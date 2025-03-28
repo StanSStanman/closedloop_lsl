@@ -10,6 +10,7 @@ import signal
 import subprocess
 import pyglet
 import warnings
+import threading
 
 # Streaming, detecting ad stimulating
 from closedloop_lsl.config.config import read_config
@@ -22,6 +23,31 @@ from closedloop_lsl.utils.utils import high_precision_sleep, get_participant_inf
 
 # Visualisation and interaction
 from psychopy import monitors, visual, event, core, gui
+
+
+def send_trig(paraport, code):
+    
+    def _set_trigger(paraport, code):
+        paraport.setData(code)
+        high_precision_sleep(0.005)
+        paraport.setData(0)
+        high_precision_sleep(0.005)
+        print(f"Trigger sent: {code}")
+        return
+    
+    threading.Thread(target=_set_trigger, args=(paraport, code)).start()
+    return
+
+def detect_trig(data):
+    _data = data.copy().sel({'times': data.times.values[-100:], 
+                             'channels': ['TRIG1']})
+    channel_data = _data.values.squeeze()
+    channel_data = channel_data.astype(int)
+    if 20 in channel_data:
+        return ['trigger', True, 0, 0, 0]
+    else:
+        return ['trigger', False, 0, 0, 0]
+    
 
 # Set environmental variable for driver selection
 os.environ['SDL_AUDIODRIVER'] = 'alsa'
@@ -52,8 +78,7 @@ else:
 # Set sounds and triggers
 stim_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'PN_44100Hz_50ms.wav')
 alarm_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'alarm.wav')
-trig_codes = {'cingulate-lh': 22, 'cingulate-rh': 24,
-              'occipital-lh': 32, 'occipital-rh': 34}
+trig_codes = {'trigger': 30}
 
 eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
                 '1LB', '1RB', '2L', '2R', '3L', '3R', 
@@ -338,8 +363,9 @@ while True:
                 sw_catcher.start_sw_detection()
                 
                 # Initialize the stimulator
-                stimulator = Stimulator(stim_file=stim_sound, alarm_file=alarm_sound, 
-                    trig_codes=trig_codes)
+                stimulator = Stimulator(stim_file=stim_sound, 
+                                        alarm_file=alarm_sound, 
+                                        trig_codes=trig_codes)
                 sound_dev = stimulator.get_devices()
                 record_dev = stimulator.get_devices(capture_devices=True)
                 
@@ -379,12 +405,12 @@ while True:
                 interrupt_time = 5. # seconds
                 timer_text = 'Alarm will play in:\n{0}'
                 # Prepare interrupt stimulation window
-                interruptWin = visual.Window(size=[300, 300], pos=(250, 250), monitor=my_monitor, fullscr=False, color='black', allowGUI=True, title='Be ready!')
-                interruptText = visual.TextStim(interruptWin, text='Button will become green when a SW is detected.\nPress it within 5 seconds to stop stimulation.', pos=(0, .65), height=0.12, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
+                interruptWin = visual.Window(size=[300, 300], pos=(250, 250), monitor=my_monitor, fullscr=False, color='black', allowGUI=True, title='Take your time...')
+                interruptText = visual.TextStim(interruptWin, text='Press the button to send a trigger', pos=(0, .65), height=0.12, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
                 # interruptText.draw()
-                interruptButton = visual.Rect(interruptWin, width=1.85, height=1.2, pos=(0, -.35), fillColor='gray', autoDraw=True)
+                interruptButton = visual.Rect(interruptWin, width=1.85, height=1.2, pos=(0, -.35), fillColor='green', autoDraw=True)
                 # interruptButton.draw()
-                interruptButtonLabel = visual.TextStim(interruptWin, text='Click to stop stimulation', pos=(0, -.35), height=0.28, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
+                interruptButtonLabel = visual.TextStim(interruptWin, text='TRIGGER!', pos=(0, -.35), height=0.28, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
                 # interruptButtonLabel.draw()
                 interruptWin.flip()
                 
@@ -397,19 +423,21 @@ while True:
                     data = stream.get_data()
                     sw_catcher.set_data(data.copy().drop_sel({'channels': 'TRIG1'}).values)
                     res = sw_catcher.get_results()
+                    trig = detect_trig(data)
                     # Check if one topography corresponds to a SW
-                    if res[0][1] is True or res[-1][1] is True:
-                        print('SW detected', res)
+                    if trig[0][1] is True:
+                        print('Trig detected', res)
                         
                         # Chose the most correlated topography
                         if not stimulator.is_stimulating:
-                            if res[0][-1] > res[-1][-1]:
-                                stimulator.send_stim(res[0])
-                            else:
-                                stimulator.send_stim(res[-1])
+                            stimulator.send_stim(trig)
+                            # if res[0][-1] > res[-1][-1]:
+                            #     stimulator.send_stim(res[0])
+                            # else:
+                            #     stimulator.send_stim(res[-1])
                                 
                         start_stim_time = time.perf_counter()
-                        interruptButton.fillColor = 'green'
+                        interruptButton.fillColor = 'gray'
                         # interruptButton.draw()
                         # interruptButtonLabel.draw()
                         interruptWin.flip()
@@ -420,23 +448,11 @@ while True:
                                              f'{pc_id}_{sesison}_{stimtime}.nc'))
                         # Interrupt the stimulation if the button is pressed
                         while time.perf_counter() - start_stim_time < interrupt_time:
-                            # st = time.time()
-                            # countdown = np.round(interrupt_time - (time.perf_counter() - start_stim_time), 3)
-                            # interruptText.text = timer_text.format(countdown)
-                            # interruptWin.flip()
-                            # interruptText.draw()
-                            
-                            if stopstimMouse.isPressedIn(interruptButton):
-                                while stopstimMouse.getPressed()[0]:  # Wait until the mouse button is released
-                                    core.wait(0.0001)
-                                stimulator.stop_stimulation()
-                                stim_completed = False
-                                break
-                            # et = time.time()
-                            # print('Time to draw:', et - st)
-                            # high_precision_sleep(0.01)
-                        interruptButton.fillColor = 'gray'
-                        interruptText.text = 'Press the button within 5 seconds to stop stimulation.'
+                            high_precision_sleep(0.001)
+                            pass
+
+                        interruptButton.fillColor = 'green'
+                        interruptText.text = 'Press the button to send a trigger'
                         interruptWin.flip()
                         
                         # UCOMMENT ALL THIS BLOCK TO STOP THE DETECTION AFTER THE FIRST SW
@@ -459,7 +475,11 @@ while True:
                         #     print('Questionnaire started')
                         #     dq = dreamquestrc(*(participant_info))
                         # break
-                            
+                        
+                    if stopstimMouse.isPressedIn(interruptButton):
+                        while stopstimMouse.getPressed()[0]:  # Wait until the mouse button is released
+                            core.wait(0.0001)
+                        send_trig(stimulator.paraport, 20)
                                                             
                     if time.time() - checkpoint > check_detect:
                         now = datetime.datetime.now().strftime("%H:%M:%S")

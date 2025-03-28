@@ -1,12 +1,16 @@
 import numpy as np
 import scipy as sp
+from scipy.stats import pearsonr
+from scipy.spatial.distance import cosine, pdist, squareform, mahalanobis
 import time
 from typing import Tuple
 
 import multiprocessing
 import threading
+# from numba import njit
 
-from closedloop_lsl.utils.utils import envelope, moving_envp
+from closedloop_lsl.utils.utils import envelope, moving_envp, temp_envp
+# from closedloop_lsl.utils.utils import laplacian
 
 
 class SWCatcher:
@@ -50,6 +54,7 @@ class SWCatcher:
         
         # Controls
         self.is_active = False
+        self._apply_laplacian = False
         
     
     def set_templates(self, templates: list):
@@ -84,7 +89,7 @@ class SWCatcher:
         assert data.shape[0] == 1, "Data should have only one channel."
         
         # Since is an envelope, we can remove the first dimension
-        data  = data.squeeze()
+        data = data.squeeze()
 
         # Check if the last sample is in the range of the down state of a slow wave
         last_samp_amp = data[-1]
@@ -164,13 +169,19 @@ class SWCatcher:
         
         # Add assertion check for data shape
         
+        _data = data[:, -self.stable_decrease_samples:]
+        # _data = data[:, -self.stable_increase_samples:]
+        # if self._apply_laplacian:
+        #     _data = _data - self.alpha * (self.L @ _data)
+        
         # Calculate mean-centered data
-        data_centered = data - data.mean(axis=0, keepdims=True)
+        data_centered = _data - _data.mean(axis=0, keepdims=True)
         temp_centered = template - template.mean()
 
         # Calculate the correlation coefficient
         num = np.sum(data_centered * temp_centered[:, np.newaxis], axis=0)
-        den = np.sqrt(np.sum(data_centered**2, axis=0) * np.sum(temp_centered**2))
+        # den = np.sqrt(np.sum(data_centered**2, axis=0) * np.sum(temp_centered**2))
+        den = np.sqrt(np.sum(data_centered**2, axis=0)) * np.sqrt(np.sum(temp_centered**2))
         corr = num / den
         
         # Check if the last correlation value is above the threshold
@@ -179,7 +190,8 @@ class SWCatcher:
         # Check if the correlation is increasing in the last 60ms
         corr_diff = np.diff(corr)
         corr_sign = np.sign(corr_diff)
-        is_increasing = np.all(corr_sign[-self.stable_increase_samples:] == 1)
+        # is_increasing = np.all(corr_sign[-self.stable_increase_samples:] == 1)
+        is_increasing = np.all(corr_sign == 1)
         
         # q.put((is_high_corr and is_increasing, corr[-1]))
         q[2] = (is_high_corr and is_increasing, corr[-1])
@@ -210,9 +222,22 @@ class SWCatcher:
         
         # Add assertion check for data shape
         
+        
+        _data = data[:, -self.stable_decrease_samples:]
+        # if self._apply_laplacian:
+        #     _data = _data - self.alpha * (self.L @ _data)
+        
+        # cov = np.cov(_data, rowvar=True)
+        # cov += 1e-5 * np.eye(cov.shape[0])
+        # inv_cov = np.linalg.pinv(cov)
+        # # dist = np.array([mahalanobis(_data[:, t], template, inv_cov) for t in range(_data.shape[1])])
+        # diff = _data - template[:, np.newaxis]  # Broadcast Y to match X's shape
+        # distances = np.einsum('ij,ij->j', diff.T @ inv_cov, diff.T)  # Efficient Mahalanobis calculation
+        # dist = np.sqrt(distances)
+        
         # Calculate the distance between the data and the template
         # TODO check if the data and template are in the right shape
-        dist = sp.spatial.distance.cdist(data.T, template.reshape(1, -1), 
+        dist = sp.spatial.distance.cdist(_data.T, template.reshape(1, -1), 
                                          metric='cosine').squeeze()
         
         # Check if the last distance value is below the threshold
@@ -221,7 +246,8 @@ class SWCatcher:
         # Check if the distance is decreasing in the last 60ms
         dist_diff = np.diff(dist)
         dist_sign = np.sign(dist_diff)
-        is_decreasing = np.all(dist_sign[-self.stable_decrease_samples:] == -1)
+        # is_decreasing = np.all(dist_sign[-self.stable_decrease_samples:] == -1)
+        is_decreasing = np.all(dist_sign == -1)
         
         # q.put((is_low_dist and is_decreasing, dist[-1]))
         q[3] = (is_low_dist and is_decreasing, dist[-1])
@@ -314,17 +340,53 @@ class SWCatcher:
         return # (is_phase, sw_freq, next_target)
     
     
+    def apply_laplacian_transform(self, ch_positions, alpha=1.):
+        """
+        Compute Laplacian filter.
+        
+        Parameters
+        ----------
+        
+        ch_positions: (channels, 2) or (channels, 3) array with (x, y) or (x, y, z) coordinates
+        alpha: Weighting parameter for Laplacian smoothing
+        
+        Returns
+        -------
+        
+        """
+        # Compute pairwise distance matrix
+        distances = squareform(pdist(ch_positions, metric='euclidean'))
+        
+        # Compute adjacency matrix
+        sigma = np.mean(distances)
+        W = np.exp(-distances**2 / (2 * sigma**2))
+        
+        # Compute Laplacian matrix
+        D = np.diag(W.sum(axis=1))
+        L = D - W
+        # Store variables
+        self.L = L
+        self.alpha = alpha
+        self._apply_laplacian = True
+        
+        # Apply directly to templates
+        for i, template in enumerate(self.templates):
+            self.templates[i][0] = L @ template[0]
+            
+        return
+
+    
     def adjust_similarities(self, direction: str='down', 
-                            min_corr: float=0.7, min_dist: float=0.15):
+                            min_corr: float=0.85, min_dist: float=0.1):
         if direction == 'down':
             if self.correlation_threshold > min_corr:
-                self.correlation_threshold -= 0.02
+                self.correlation_threshold -= 0.01
                 # print(f'New correlation threshold: {self.correlation_threshold}')
             if self.distance_threshold < min_dist:
                 self.distance_threshold += 0.01
                 # print(f'New distance threshold: {self.distance_threshold}')
         elif direction == 'up':
-            self.correlation_threshold += 0.02
+            self.correlation_threshold += 0.01
             # print(f'New correlation threshold: {self.correlation_threshold}')
             self.distance_threshold -= 0.01
             # print(f'New distance threshold: {self.distance_threshold}')
@@ -335,7 +397,7 @@ class SWCatcher:
         
         # self.queues.put(data)
         for i in range(self.num_listeners):
-            self.data_queues[i].put(data)
+            self.data_queues[i].put(data.copy())
             # print(f"Data sent to listener {i}.")
         return
     
@@ -384,7 +446,7 @@ class SWCatcher:
         self._negsw, self._idx, self._nopos = ([], [], 0)
         # Initialize timer to change similarity thresholds after 60 seconds if a SW did not occur
         self.sw_detected = False
-        change_after = 60.
+        change_after = 4.
         _adjust_timer = time.time()
         
         while True:
@@ -444,15 +506,30 @@ class SWCatcher:
             and the possible number of samples to the next up-phase.
         """
         
+        c_data = data.copy()
+        
         # start = time.time()
         target, roi, phase = template
+        
+        # if self._apply_laplacian:
+        #     laplacian(c_data, self.alpha, self.L)
+        #     # data = data - self.alpha * np.dot(self.L, data)
         
         # last_tp = data.times.values[-1]
         # data = data.values
         # Compute the envelope of the data
         # envp = envelope(data, n_excl=1, n_kept=3, center=True)
-        envp, idx = moving_envp(data, n_excl=1, n_kept=3,
-                                ntp=750, center=True, idx=self._idx)
+        envp, idx = moving_envp(c_data.copy(), n_excl=1, n_kept=3,
+                                ntp=750, center=False, idx=self._idx)
+        # envp, idx = temp_envp(data, target, n_chans=3, center=True)
+        
+        # tstart = time.perf_counter()
+        # if self._apply_laplacian:
+        #     # data = data - self.alpha * (self.L @ data)
+        #     # data = data - self.alpha * np.dot(self.L, data)
+            # laplacian(data, self.alpha, self.L)
+        #     print(data.shape)
+        # print('Laplacian time:', time.perf_counter() - tstart)
         # print(envp)
         
         # if phase == 'neg':
@@ -486,12 +563,12 @@ class SWCatcher:
         
         queues = [None, None, None, None, None, None]
         
-        args = [(envp, queues), # Negative peak detection
-                (envp, queues), # Positive peak detection
-                (data, target, queues), # Correlation
-                (data, target, queues), # Distance
-                (envp, 'neg', queues), # Negative phase detection
-                (envp, 'pos', queues)] # Positive phase detection
+        args = [(envp.copy(), queues), # Negative peak detection
+                (envp.copy(), queues), # Positive peak detection
+                (c_data.copy(), target, queues), # Correlation
+                (c_data.copy(), target, queues), # Distance
+                (envp.copy(), 'neg', queues), # Negative phase detection
+                (envp.copy(), 'pos', queues)] # Positive phase detection
         
         threads = []
         for i in range(len(algorithms)):
@@ -515,6 +592,9 @@ class SWCatcher:
         if phase == 'neg':
             # Take all boolean results for negative detection
             check_sw = [results[0][0], results[2][0], results[3][0], results[4][0]]
+            # if check_sw[1]:
+            #     print('\n', self.correlation_threshold)
+            #     print(results)
             # Check if all the detections are True
             if all(check_sw):
                 # print('SW detected', proc_num, ':', results)
@@ -599,9 +679,10 @@ if __name__ == '__main__':
     sw_catcher.start_sw_detection()
     
     data = np.repeat(templates[0][0][:, np.newaxis], 2500, axis=-1)
+    c_data = data.copy()
     
     all_results = []
-    for i in range(5000):
+    for i in range(2000):
         # Set the data
         sw_catcher.set_data(data)
         # sw_catcher.set_data(data)
@@ -611,9 +692,14 @@ if __name__ == '__main__':
         print('Outern loop', results)
         all_results.append(results)
         
+        if not np.all(data == c_data):
+            raise ValueError("Data was modified.")
+        
         data = np.random.uniform(0, 1, (64, 2500))
+        c_data = data.copy()
         if 500<i<1000:
             data = np.repeat(templates[0][0][:, np.newaxis], 2500, axis=-1)
+            c_data = data.copy()
         # time.sleep(0.5)
     
     # Stop the slow wave detection

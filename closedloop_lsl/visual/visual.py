@@ -5,7 +5,7 @@ import time
 import datetime
 # import numpy as np
 # import xarray as xr
-import mne
+# import mne
 import signal
 import subprocess
 import pyglet
@@ -169,7 +169,7 @@ while True:
             # iter_draw(groupObjMain)
             mainWin.flip()
             
-            stream.open_stream(bufsize=10.)
+            stream.open_stream(bufsize=7.)
             streamInfoText.text = 'Stream opened.'
             # streamInfoText.draw()
             # iter_draw(groupObjMain)
@@ -187,10 +187,13 @@ while True:
             #                                             f_stop=[.1, 10.], 
             #                                             sfreq=500., 
             #                                             btype='bandpass')
-            iir_params = None
-            stream.apply_filter(low_freq=.5, high_freq=4., 
+            # iir_params = dict(order=4, ftype='butter', output='sos')
+            stream.apply_filter(low_freq=.5, high_freq=4.,
+                                filter_length='auto',
                                 picks=slice(0, 64),
-                                iir_params=iir_params)
+                                method='fir',
+                                iir_params=None,
+                                pad='reflect')
             stream.set_reference_channels(['3LD', '3RD'])
             stream.start_acquisition(interval=0.001)
             streamInfoText.text = 'Stream active.'

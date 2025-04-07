@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, zscore
 from scipy.spatial.distance import cosine, pdist, squareform, mahalanobis
 import time
 from typing import Tuple
@@ -198,6 +198,56 @@ class SWCatcher:
         
         # Return True if the last correlation value is above the threshold and
         # the correlation is still increasing
+        return (is_high_corr and is_increasing, corr[-1])
+    
+    
+    def detect_zs_corr(self, data: np.ndarray, template: np.ndarray, q)->bool:
+        """
+        Detect if the data has a correlation with the template above the threshold.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data to detect correlation in.
+        template : np.ndarray
+            The template to correlate with.
+
+        Returns
+        -------
+        bool
+            True if the correlation is above the threshold, False otherwise.
+        """
+        
+        # Add assertion check for data shape
+        
+        _data = data[:, -self.stable_decrease_samples:]
+        
+        # Compute z-scores
+        zs_data = zscore(_data, axis=0)
+        zs_template = zscore(template)
+        
+        # Calculate mean-centered data
+        data_centered = zs_data - zs_data.mean(axis=0, keepdims=True)
+        temp_centered = zs_template - zs_template.mean()
+
+        # Calculate the correlation coefficient
+        num = np.sum(data_centered * temp_centered[:, np.newaxis], axis=0)
+        # den = np.sqrt(np.sum(data_centered**2, axis=0) * np.sum(temp_centered**2))
+        den = np.sqrt(np.sum(data_centered**2, axis=0)) * np.sqrt(np.sum(temp_centered**2))
+        corr = num / den
+        
+        # Check if the last correlation value is above the threshold
+        is_high_corr = corr[-1] >= 0.9 # self.correlation_threshold
+        
+        # Check if the correlation is increasing in the last 60ms
+        corr_diff = np.diff(corr)
+        corr_sign = np.sign(corr_diff)
+        # is_increasing = np.all(corr_sign[-self.stable_increase_samples:] == 1)
+        is_increasing = np.all(corr_sign == 1)
+        
+        # q.put((is_high_corr and is_increasing, corr[-1]))
+        q[6] = (is_high_corr and is_increasing, corr[-1])
+        
         return (is_high_corr and is_increasing, corr[-1])
 
 
@@ -446,7 +496,7 @@ class SWCatcher:
         self._negsw, self._idx, self._nopos = ([], [], 0)
         # Initialize timer to change similarity thresholds after 60 seconds if a SW did not occur
         self.sw_detected = False
-        change_after = 4.
+        change_after = 60.
         _adjust_timer = time.time()
         
         while True:
@@ -559,16 +609,18 @@ class SWCatcher:
                       self.detect_correlation, 
                       self.detect_distance, 
                       self.detect_phase,
-                      self.detect_phase]
+                      self.detect_phase,
+                      self.detect_zs_corr]
         
-        queues = [None, None, None, None, None, None]
+        queues = [None, None, None, None, None, None, None]
         
         args = [(envp.copy(), queues), # Negative peak detection
                 (envp.copy(), queues), # Positive peak detection
                 (c_data.copy(), target, queues), # Correlation
                 (c_data.copy(), target, queues), # Distance
                 (envp.copy(), 'neg', queues), # Negative phase detection
-                (envp.copy(), 'pos', queues)] # Positive phase detection
+                (envp.copy(), 'pos', queues), # Positive phase detection
+                (c_data.copy(), target, queues)] # ZS correlation
         
         threads = []
         for i in range(len(algorithms)):
@@ -591,7 +643,7 @@ class SWCatcher:
 
         if phase == 'neg':
             # Take all boolean results for negative detection
-            check_sw = [results[0][0], results[2][0], results[3][0], results[4][0]]
+            check_sw = [results[0][0], results[2][0], results[3][0], results[4][0], results[6][0]]
             # if check_sw[1]:
             #     print('\n', self.correlation_threshold)
             #     print(results)
@@ -600,7 +652,7 @@ class SWCatcher:
                 # print('SW detected', proc_num, ':', results)
                 # result is composed of roi, neg phase deteciton and corr
                 result = [roi, *results[4], results[2][-1]] # !!!!! THIS IS THE CORRECT ONE
-                # result = [roi, *results[4], results[3][-1]] # !!!!! THIS IS FOR DEBUGGING
+                # result = [roi, *results[4], results[6][-1]] # !!!!! THIS IS FOR DEBUGGING
                 # result = results
                 self.results_queues[proc_num].put(result)
                 self.sw_detected = True
@@ -633,7 +685,7 @@ class SWCatcher:
                     # print('step 2 SW but not positive')
             else:
                 # Check if a negative slow wave was detected
-                check_sw = [results[0][0], results[2][0], results[3][0], results[4][0]]
+                check_sw = [results[0][0], results[2][0], results[3][0], results[4][0], results[6][0]]
                 if all(check_sw):
                     # if they are True, set a temporary variable to True
                     self._negsw.append(results[2][-1])

@@ -1,7 +1,8 @@
 import mne_lsl
 from mne_lsl.lsl import resolve_streams
+import mne
 
-import numpy as np
+# import numpy as np
 import xarray as xr
 import time
 import warnings
@@ -26,6 +27,7 @@ class ClosedLoopLSL:
         self._aquire = False
         
         self.ch_names = ch_names
+        self.filt_params = None
         self.del_chans = del_chans
         self.ref_ch = None
         
@@ -135,22 +137,79 @@ class ClosedLoopLSL:
         return True
     
     
+    # def apply_filter(self, low_freq: float = .5, 
+    #                  high_freq: float = 4.,
+    #                  picks=None,
+    #                  iir_params=None) -> None:
+        
+    #     # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
+    #     # iir_params = mne.filter.construct_iir_filter(params, 
+    #     #                                              f_pass=[.5, 4.], 
+    #     #                                              f_stop=[.1, 10.], 
+    #     #                                              sfreq=500., 
+    #     #                                              btype='bandpass')
+    #     self.stream.filter(low_freq, high_freq, 
+    #                        picks=picks, iir_params=iir_params)        
+    #     # self.stream.filter(low_freq, high_freq, iir_params=None)
+    #     print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
+    #     return
+    
+    
     def apply_filter(self, low_freq: float = .5, 
                      high_freq: float = 4.,
+                     filter_length: str = 'auto',
                      picks=None,
-                     iir_params=None) -> None:
+                     method='fir',
+                     iir_params=None,
+                     pad='reflected_limited') -> None:
+        filt_params = {}
+        filt_params['sfreq'] = self.sfreq
+        filt_params['l_freq'] = low_freq
+        filt_params['h_freq'] = high_freq
+        filt_params['filter_length'] = filter_length
+        if isinstance(picks, list):
+            # Check if channel names are set
+            if self.ch_names is not None:
+                filt_params['picks'] = [self.ch_names.index(ch) for ch in picks]
+            else:
+                filt_params['picks'] = picks
+        elif isinstance(picks, slice):
+            filt_params['picks'] = picks
+        else:
+            filt_params['picks'] = None
+        if iir_params is None:
+            filt_params['method'] = method
+        else:
+            filt_params['method'] = 'iir'
+        filt_params['iir_params'] = iir_params
+        filt_params['pad'] = pad
         
-        # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
-        # iir_params = mne.filter.construct_iir_filter(params, 
-        #                                              f_pass=[.5, 4.], 
-        #                                              f_stop=[.1, 10.], 
-        #                                              sfreq=500., 
-        #                                              btype='bandpass')
-        self.stream.filter(low_freq, high_freq, 
-                           picks=picks, iir_params=iir_params)        
-        # self.stream.filter(low_freq, high_freq, iir_params=None)
-        print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
+        self.filt_params = filt_params
+
+        print ('Applying filter with params:\n', filt_params)
+        # print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
         return
+    
+    
+    def _set_filt(self, data):
+        # start = time.perf_counter()
+        if self.filt_params is not None:
+            _data = mne.filter.filter_data(data, 
+                                    sfreq=self.filt_params['sfreq'],
+                                    l_freq=self.filt_params['l_freq'],
+                                    h_freq=self.filt_params['h_freq'],
+                                    filter_length=self.filt_params['filter_length'],
+                                    picks=self.filt_params['picks'],
+                                    method=self.filt_params['method'],
+                                    iir_params=self.filt_params['iir_params'],
+                                    pad=self.filt_params['pad'],
+                                    copy=True, n_jobs=1, verbose=False)
+        else:
+            _data = data
+            
+        # end = time.perf_counter()
+        # print('Filter time:', end - start)
+        return _data
     
     
     def set_reference_channels(self, ref_ch: Optional[List[int]] = None) -> None:
@@ -207,6 +266,8 @@ class ClosedLoopLSL:
                         _chn = list(range(_dt.shape[0]))
                     else:
                         _chn = self.ch_names
+                        
+                    _dt = self._set_filt(_dt)
                     
                     da = xr.DataArray(_dt, 
                                       coords={'channels': _chn, 

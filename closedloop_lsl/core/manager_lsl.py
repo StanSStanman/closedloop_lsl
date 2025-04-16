@@ -267,7 +267,7 @@ class ClosedLoopLSL:
                     else:
                         _chn = self.ch_names
                         
-                    _dt = self._set_filt(_dt)
+                    _dt = self._set_filt(_dt.astype(float))
                     
                     da = xr.DataArray(_dt, 
                                       coords={'channels': _chn, 

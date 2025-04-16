@@ -334,7 +334,7 @@ while True:
                 sw_catcher = SWCatcher(sfreq=500, 
                                        stable_decrease_time=0.04, 
                                        stable_increase_time=0.02,
-                                       neg_peaks_range=(-80e-6, -30e-6),
+                                       neg_peaks_range=(-100e-6, -40e-6),
                                        pos_peaks_range=(5e-6, 40e-6),
                                        correlation_threshold=0.95,
                                        distance_threshold=0.05)

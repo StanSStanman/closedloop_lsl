@@ -14,6 +14,7 @@ import queue
 # import multiprocessing
 
 from closedloop_lsl.utils.utils import high_precision_sleep
+from closedloop_lsl.core.filter import SlidingFilter
 
 
 class ClosedLoopLSL:
@@ -187,13 +188,21 @@ class ClosedLoopLSL:
         
         self.filt_params = filt_params
         
-        self.filter = mne.filter.create_filter(data=None, 
-                                               sfreq=filt_params['sfreq'],
-                                               l_freq=filt_params['l_freq'],
-                                               h_freq=filt_params['h_freq'],
-                                               filter_length=filt_params['filter_length'],
-                                               method=filt_params['method'], 
-                                               iir_params=filt_params['iir_params'])
+        # self.filter = mne.filter.create_filter(data=None, 
+        #                                        sfreq=filt_params['sfreq'],
+        #                                        l_freq=filt_params['l_freq'],
+        #                                        h_freq=filt_params['h_freq'],
+        #                                        filter_length=filt_params['filter_length'],
+        #                                        method=filt_params['method'], 
+        #                                        iir_params=filt_params['iir_params'])
+        self.filter = SlidingFilter(sfreq=filt_params['sfreq'],
+                                    low_freq=filt_params['l_freq'],
+                                    high_freq=filt_params['h_freq'],
+                                    filter_length=filt_params['filter_length'],
+                                    picks=filt_params['picks'],
+                                    method=filt_params['method'],
+                                    iir_params=filt_params['iir_params'],
+                                    pad=filt_params['pad'])
 
         print ('Applying filter with params:\n', filt_params)
         # print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
@@ -291,6 +300,7 @@ class ClosedLoopLSL:
                 # if self.stream.n_new_samples != 0:
                 if self.stream.n_new_samples >= 10:  # Avoid taking chunks shorter than 10 points (20ms)
                     # print(self.stream.n_new_samples)
+                    new_samples = self.stream.n_new_samples
                     
                     _dt, _ts = self.stream.get_data()
                         
@@ -299,7 +309,8 @@ class ClosedLoopLSL:
                     else:
                         _chn = self.ch_names
                         
-                    _dt = self._set_filt(_dt)
+                    # _dt = self._set_filt(_dt)
+                    _dt = self.filter.update(_dt, new_samples)
                     
                     da = xr.DataArray(_dt, 
                                       coords={'channels': _chn, 

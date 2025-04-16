@@ -5,6 +5,7 @@ import mne
 import numpy as np
 from scipy.signal import firwin, filtfilt
 import xarray as xr
+from numba import njit
 import time
 import warnings
 from typing import Optional, List
@@ -162,7 +163,7 @@ class ClosedLoopLSL:
                      picks=None,
                      method='fir',
                      iir_params=None,
-                     pad='reflect_limited') -> None:
+                     pad='reflected_limited') -> None:
         filt_params = {}
         filt_params['sfreq'] = self.sfreq
         filt_params['l_freq'] = low_freq
@@ -186,59 +187,28 @@ class ClosedLoopLSL:
         filt_params['pad'] = pad
         
         self.filt_params = filt_params
-        
-        self.filter = mne.filter.create_filter(data=None, 
-                                               sfreq=filt_params['sfreq'],
-                                               l_freq=filt_params['l_freq'],
-                                               h_freq=filt_params['h_freq'],
-                                               filter_length=filt_params['filter_length'],
-                                               method=filt_params['method'], 
-                                               iir_params=filt_params['iir_params'])
 
         print ('Applying filter with params:\n', filt_params)
         # print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
         return
     
-    
+    @njit(parallel=True, fastmath=True)
     def _set_filt(self, data):
         # start = time.perf_counter()
         if self.filt_params is not None:
             _data = data.copy().astype(np.float32)
-            # _data = mne.filter.filter_data(data, 
-            #                         sfreq=self.filt_params['sfreq'],
-            #                         l_freq=self.filt_params['l_freq'],
-            #                         h_freq=self.filt_params['h_freq'],
-            #                         filter_length=self.filt_params['filter_length'],
-            #                         picks=self.filt_params['picks'],
-            #                         method=self.filt_params['method'],
-            #                         iir_params=self.filt_params['iir_params'],
-            #                         pad=self.filt_params['pad'],
-            #                         copy=True, n_jobs=1, verbose=False)
-            n_channels, n_times = data.shape
-            numtaps = self.filter.shape[0]
-            padlen = numtaps * 1
-            
-            picks = self.filt_params['picks']
-            if isinstance(picks, slice):
-                picks = list(range(picks.stop))
-                
-            # picked = _data[picks, :]
-            # x = np.apply_along_axis(lambda m: np.pad(m, padlen, mode=self.filt_params['pad']), axis=1, arr=picked)
-            # y = np.apply_along_axis(lambda m: np.convolve(m, self.filter.astype(np.float32), mode='valid'), axis=1, arr=x)
-            # _data[picks, :] = y[:, numtaps - 1 : numtaps - 1 + n_times]
-            
-            
-            for c in picks:
-                x = np.pad(_data[c, :], padlen, mode=self.filt_params['pad'])
-                y = np.convolve(x, self.filter.astype(np.float32), mode='valid')
-                _data[c, :] = y[numtaps - 1 : numtaps - 1 + n_times]
-            
-            
+            _data = mne.filter.filter_data(data, 
+                                    sfreq=self.filt_params['sfreq'],
+                                    l_freq=self.filt_params['l_freq'],
+                                    h_freq=self.filt_params['h_freq'],
+                                    filter_length=self.filt_params['filter_length'],
+                                    picks=self.filt_params['picks'],
+                                    method=self.filt_params['method'],
+                                    iir_params=self.filt_params['iir_params'],
+                                    pad=self.filt_params['pad'],
+                                    copy=True, n_jobs=1, verbose=False)
         else:
             _data = data
-            
-        # print(data.shape)
-            
         # end = time.perf_counter()
         # print('Filter time:', end - start)
         return _data

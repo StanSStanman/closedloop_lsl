@@ -108,7 +108,7 @@ class SlidingFilter:
         # Initialize filter state
         self.n_channels, self.n_samples = _buff.shape
         self.zi = lfilter_zi(self.fir_coeff, [1.0])  # Compute initial conditions
-        self.zi = np.tile(self.zi, (self.n_channels, 1))  # Match shape to channels
+        self.zi = self.zi = np.tile(self.zi[:, np.newaxis], (1, self.n_channels))
         # self.filtered_full = np.empty_like(buffer, dtype=np.float32)  # Preallocate memory
         filtered_full = buffer.copy().astype(np.float32)
         filtered_full[self.picks, :], self.zi = lfilter(self.fir_coeff, [1.0], _buff, axis=-1, zi=self.zi)

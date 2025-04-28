@@ -55,44 +55,113 @@ alarm_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'alarm.wav')
 trig_codes = {'cingulate-lh': 22, 'cingulate-rh': 24,
               'occipital-lh': 32, 'occipital-rh': 34}
 
-eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
-                '1LB', '1RB', '2L', '2R', '3L', '3R', 
-                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
-                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
-                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
-                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z', 'EOG',
-                '10L', '10R', '9L', '9R', '8L', '8R', 
-                '7L', '7R', '6L', '6R', '5L', '5R', 
-                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
-                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
-                '4LB', '4RB', 'BIP1', 'BIP2', 'BIP3',
-                'TRIG1']
+# eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+#                 '1LB', '1RB', '2L', '2R', '3L', '3R', 
+#                 '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+#                 '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+#                 '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+#                 '3RD', '3LD', '9Z', '8Z', '7Z', '6Z', 'EOG',
+#                 '10L', '10R', '9L', '9R', '8L', '8R', 
+#                 '7L', '7R', '6L', '6R', '5L', '5R', 
+#                 '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+#                 '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+#                 '4LB', '4RB', 'BIP1', 'BIP2', 'BIP3',
+#                 'TRIG1']
+eeg_channels = ['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
+                'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
+                'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
+                'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
+                'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
+                'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
+                'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
+                'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
+                'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
+                'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
+                'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
+                'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
+                'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
+                'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
+                'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
+                'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
+                'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
+                'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
+                'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
+                'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
+                'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
+                'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
+                'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
+                'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
+                'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
+                'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
+                'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
+                'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
+                'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
+                'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
+                'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
+                'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
+                'VEOGR', 'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
+                'Z19Z', 'Z20Z', 'BIP1', 'BIP2', 'BIP3', 'TRIG1']
 
 # deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
-deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3']
+# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3']
 # deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
 # deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG2']
+deleted_channels = ['VEOGR', 'BIP1', 'BIP2', 'BIP3']
 
 # Load topographies
 
 # MAYBE IT IS BETTER TO REPLACE ALL OF THAT WITH DICTONARY
 tp_dir = cfg['DEFAULT']['TemplatesPath']
 # tp_fname = op.join(tp_dir, 'epo_topo_fronto-occipital_geodesic_64ch.nc')
-tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_64ch.nc')
+tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_256ch.nc')
 all_templates = TopoTemplates()
 all_templates.load_templates(tp_fname)
-all_templates.reorder_channels(['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
-                                '1LB', '1RB', '2L', '2R', '3L', '3R', 
-                                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
-                                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
-                                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
-                                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z',
-                                '10L', '10R', '9L', '9R', '8L', '8R', 
-                                '7L', '7R', '6L', '6R', '5L', '5R', 
-                                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
-                                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
-                                '4LB', '4RB', '5Z'])
-all_templates.del_channels(['5Z'])
+# all_templates.reorder_channels(['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+#                                 '1LB', '1RB', '2L', '2R', '3L', '3R', 
+#                                 '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+#                                 '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+#                                 '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+#                                 '3RD', '3LD', '9Z', '8Z', '7Z', '6Z',
+#                                 '10L', '10R', '9L', '9R', '8L', '8R', 
+#                                 '7L', '7R', '6L', '6R', '5L', '5R', 
+#                                 '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+#                                 '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+#                                 '4LB', '4RB', '5Z'])
+all_templates.reorder_channels(['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
+                                'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
+                                'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
+                                'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
+                                'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
+                                'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
+                                'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
+                                'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
+                                'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
+                                'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
+                                'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
+                                'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
+                                'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
+                                'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
+                                'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
+                                'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
+                                'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
+                                'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
+                                'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
+                                'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
+                                'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
+                                'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
+                                'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
+                                'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
+                                'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
+                                'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
+                                'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
+                                'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
+                                'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
+                                'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
+                                'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
+                                'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
+                                'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
+                                'Z19Z', 'Z20Z', 'Z12Z'])
+all_templates.del_channels(['Z12Z'])
 # loaded_templates = xr.open_dataarray(tp_fname)
 # all_templates = {}
 # for roi in loaded_templates.rois.values:
@@ -111,7 +180,7 @@ introText = visual.TextStim(mainWin, text='Welcome to\nClosed-Loop LSL!', pos=(0
 subintroText = visual.TextStim(mainWin, text=' Click on \'Start stream\' when the system is ready.', pos=(0, .6), height=0.055, color='white', font='Nimbus Sans', autoDraw=True)
 
 # Stream textbox
-streamTextbox = visual.TextBox2(mainWin, text='EE225-020034-000630_on_MININT-A894NL4', pos=(.2, .3), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
+streamTextbox = visual.TextBox2(mainWin, text='EE225-020034-000625_on_MININT-A894NL4', pos=(.2, .3), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
 # streamTextbox = visual.TextBox2(mainWin, text='EE225-020034-000625_on_MININT-A894NL4', pos=(.2, .3), size=(.8, .16), fillColor="white", color="black", editable=True, font='Nimbus Sans', autoDraw=True)
 
 # Stream textbox label
@@ -188,13 +257,19 @@ while True:
             #                                             sfreq=500., 
             #                                             btype='bandpass')
             # iir_params = dict(order=4, ftype='butter', output='sos')
+            # stream.apply_filter(low_freq=.5, high_freq=4.,
+            #                     filter_length='auto',
+            #                     picks=slice(0, 64),
+            #                     method='fir',
+            #                     iir_params=None,
+            #                     pad='reflect')
             stream.apply_filter(low_freq=.5, high_freq=4.,
                                 filter_length='auto',
-                                picks=slice(0, 64),
+                                picks=slice(0, 256),
                                 method='fir',
                                 iir_params=None,
                                 pad='reflect')
-            stream.set_reference_channels(['3LD', '3RD'])
+            stream.set_reference_channels(['R4H', 'L4H'])
             stream.start_acquisition(interval=0.0005)
             streamInfoText.text = 'Stream active.'
             # streamInfoText.draw()

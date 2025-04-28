@@ -147,7 +147,7 @@ class Stimulator:
             self.paraport.setData(code)
             high_precision_sleep(0.02)
             self.paraport.setData(0)
-            high_precision_sleep(0.02)
+            high_precision_sleep(0.005)
             print(f"Trigger sent: {code}")
             return
         

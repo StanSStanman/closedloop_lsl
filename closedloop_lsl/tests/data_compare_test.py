@@ -3,6 +3,7 @@ import os.path as op
 import time
 import numpy as np
 import xarray as xr
+import mne
 
 from closedloop_lsl.core.manager_lsl import ClosedLoopLSL
 from closedloop_lsl.core.stimulation import Stimulator
@@ -20,8 +21,8 @@ if __name__ == '__main__':
                     'trigger': ['trigger', 0, 0, 0],
                     'stop': ['stop', 0, 0, 0]}
     
-    stim_order = ['start', 'trigger', 'trigger', 'stop']
-    stim_time = np.random.uniform(2.5, 3.5, len(stim_order))
+    stim_order = ['start', 'trigger', 'trigger', 'trigger', 'stop']
+    stim_time = np.random.uniform(9.5, 10.5, len(stim_order))
     
     # Initialize EEG stream
     streams_name = 'EE225-000000-000625'
@@ -52,13 +53,20 @@ if __name__ == '__main__':
     #                 '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
     #                 '4LB', '4RB', 'TRIG1']
     
+    params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'sos'}
+    iir_params = mne.filter.construct_iir_filter(params, 
+                                                 f_pass=[.5, 4.], 
+                                                 f_stop=[.1, 10.], 
+                                                 sfreq=500., 
+                                                 btype='bandpass')
+    
     task = ClosedLoopLSL(sfreq=500., ch_names=eeg_channels,)
     task.search_stream(sname=streams_name, stype=streams_type)
     task.open_stream(bufsize=5.)
     task.connect_stream()
     # Add channels' names here
-    task.apply_filter(low_freq=.5, high_freq=4.)
-    # task.set_reference_channels(['3LD', '3RD']) # Reference channels' names
+    task.apply_filter(low_freq=.5, high_freq=4., iir_params=iir_params)
+    task.set_reference_channels(['3LD', '3RD']) # Reference channels' names
     task.start_acquisition(interval=0.005)
     
     # Initialize stimulator
@@ -79,7 +87,7 @@ if __name__ == '__main__':
     print('Start testing...')
     all_data = []
     t0 = time.perf_counter()
-    t1 = t0 + 20. # 20 seconds
+    t1 = t0 + np.sum(stim_time) + 5. # 5 seconds after stimulation protocol ends
     stim_n = 0
     next_stim = t0 + stim_time[stim_n] # recording start time
     while time.perf_counter() < t1:
@@ -88,8 +96,12 @@ if __name__ == '__main__':
         now = time.perf_counter()
         if next_stim - now <= 0:
             stimulator.send_stim(stimulations[stim_order[stim_n]])
+            print('sending:', stimulations[stim_order[stim_n]])
             stim_n += 1
-            next_stim = now + stim_time[stim_n]
+            if stim_n <= len(stim_time) - 1:
+                next_stim = now + stim_time[stim_n]
+            else:
+                next_stim = now + np.inf
             high_precision_sleep(.005)
             stimulator.stop_stimulation()
 
@@ -98,10 +110,18 @@ if __name__ == '__main__':
             
         # acquisition_time_end = time.perf_counter()
         # print('Acquisition time:', acquisition_time_end - acquisition_time_start)
-        
+    
+    high_precision_sleep(5.)
     # Save data
-    xr.concat(all_data, dim='times').to_netcdf('test_data_1.nc')
-       
+    comb = xr.combine_nested(all_data, ['channels'])
+    lsl_data = []
+    for ch in eeg_channels:
+        lsl_data.append(comb.sel({'channels': ch}).mean('channels', skipna=True, keep_attrs=True))
+    lsl_data = xr.concat(lsl_data, 'channels')
+    lsl_data = lsl_data.assign_coords(channels=eeg_channels)
+    lsl_data.to_netcdf('test_data_11.nc')
+    print('Data saved')
+    
     stimulator.stop()
     task.stop_acquisition()
     task.disconnect_streams()

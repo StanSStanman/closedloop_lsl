@@ -2,8 +2,6 @@ import mne_lsl
 from mne_lsl.lsl import resolve_streams
 import mne
 
-import numpy as np
-from scipy.signal import firwin, filtfilt
 import xarray as xr
 import time
 import warnings
@@ -11,10 +9,8 @@ from typing import Optional, List
 
 import threading
 import queue
-# import multiprocessing
 
 from closedloop_lsl.utils.utils import high_precision_sleep
-# from closedloop_lsl.core.filter import SlidingFilter
 
 
 class ClosedLoopLSL:
@@ -23,10 +19,11 @@ class ClosedLoopLSL:
         self.sfreq = sfreq
         self.device = None
         self.stream = None
-        # self.connected = multiprocessing.Value('b', False)
-        self.connected = False # multiprocessing.Value('b', False)
-        self.aquiring_data = False # multiprocessing.Value('b', False)
+        
+        self.connected = False
+        self.aquiring_data = False
         self._aquire = False
+        self.new_samples = 0
         
         self.ch_names = ch_names
         self.filt_params = None
@@ -72,7 +69,6 @@ class ClosedLoopLSL:
         self.bufsize = bufsize
         self.buflen = int(self.sfreq * bufsize)
         
-        # self.streams = []
         tstart = time.time()
         while self.stream is None:
             sname, stype, suid = self.device
@@ -138,13 +134,29 @@ class ClosedLoopLSL:
         print('\tStream disconnected.\n')
         return True
     
+    def set_ch_types(self, ch_types: dict) -> None:
+        if self.stream is None:
+            print('No stream available to set channel types.')
+            return
+        else:
+            orig_ch_types = self.stream.get_channel_types()
+            orig_ch_types = {ch: t for ch, t in zip(self.stream.ch_names,
+                                                    orig_ch_types)}
+            for ch, t in ch_types.items():
+                orig_ch_types[ch] = t
+            self.stream.set_channel_types(orig_ch_types)
+            self.ch_types = orig_ch_types
+            print('Channel types set:', ch_types)
+        return
     
+    # If only mne_lsl filters worked...
     # def apply_filter(self, low_freq: float = .5, 
     #                  high_freq: float = 4.,
     #                  picks=None,
     #                  iir_params=None) -> None:
         
     #     # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'ba'}
+    #     # params = dict(order=4, ftype='butter', output='sos')
     #     # iir_params = mne.filter.construct_iir_filter(params, 
     #     #                                              f_pass=[.5, 4.], 
     #     #                                              f_stop=[.1, 10.], 
@@ -155,7 +167,6 @@ class ClosedLoopLSL:
     #     # self.stream.filter(low_freq, high_freq, iir_params=None)
     #     print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
     #     return
-    
     
     def apply_filter(self, low_freq: float = .5, 
                      high_freq: float = 4.,
@@ -187,68 +198,27 @@ class ClosedLoopLSL:
         filt_params['pad'] = pad
         
         self.filt_params = filt_params
-        
-        # self.filter = mne.filter.create_filter(data=None, 
-        #                                        sfreq=filt_params['sfreq'],
-        #                                        l_freq=filt_params['l_freq'],
-        #                                        h_freq=filt_params['h_freq'],
-        #                                        filter_length=filt_params['filter_length'],
-        #                                        method=filt_params['method'], 
-        #                                        iir_params=filt_params['iir_params'])
-        # self.filter = SlidingFilter(sfreq=filt_params['sfreq'],
-        #                             low_freq=filt_params['l_freq'],
-        #                             high_freq=filt_params['h_freq'],
-        #                             filter_length=filt_params['filter_length'],
-        #                             picks=filt_params['picks'],
-        #                             method=filt_params['method'],
-        #                             iir_params=filt_params['iir_params'],
-        #                             pad=filt_params['pad'])
 
         print ('Applying filter with params:\n', filt_params)
         # print('Filter applied, range:', low_freq, '-', high_freq, 'Hz')            
         return
     
-    
     def _set_filt(self, data):
         # start = time.perf_counter()
         if self.filt_params is not None:
-            _data = data.copy().astype(float)
-            _data = mne.filter.filter_data(_data, 
-                                    sfreq=self.filt_params['sfreq'],
-                                    l_freq=self.filt_params['l_freq'],
-                                    h_freq=self.filt_params['h_freq'],
-                                    filter_length=self.filt_params['filter_length'],
-                                    picks=self.filt_params['picks'],
-                                    method=self.filt_params['method'],
-                                    iir_params=self.filt_params['iir_params'],
-                                    pad=self.filt_params['pad'],
-                                    phase='zero',
-                                    copy=False, n_jobs=8, verbose=False)
-            # n_channels, n_times = data.shape
-            # numtaps = self.filter.shape[0]
-            # padlen = numtaps * 1
-            
-            # picks = self.filt_params['picks']
-            # if isinstance(picks, slice):
-            #     picks = list(range(picks.stop))
-                
-            # # picked = _data[picks, :]
-            # # x = np.apply_along_axis(lambda m: np.pad(m, padlen, mode=self.filt_params['pad']), axis=1, arr=picked)
-            # # y = np.apply_along_axis(lambda m: np.convolve(m, self.filter.astype(np.float32), mode='valid'), axis=1, arr=x)
-            # # _data[picks, :] = y[:, numtaps - 1 : numtaps - 1 + n_times]
-            
-            
-            # for c in picks:
-            #     x = np.pad(_data[c, :], padlen, mode=self.filt_params['pad'])
-            #     y = np.convolve(x, self.filter.astype(np.float32), mode='valid')
-            #     _data[c, :] = y[numtaps - 1 : numtaps - 1 + n_times]
-            
-            
+            _data = mne.filter.filter_data(data, 
+                            sfreq=self.filt_params['sfreq'],
+                            l_freq=self.filt_params['l_freq'],
+                            h_freq=self.filt_params['h_freq'],
+                            filter_length=self.filt_params['filter_length'],
+                            picks=self.filt_params['picks'],
+                            method=self.filt_params['method'],
+                            iir_params=self.filt_params['iir_params'],
+                            pad=self.filt_params['pad'],
+                            phase='zero',
+                            copy=False, n_jobs=8, verbose=False)
         else:
             _data = data
-            
-        # print(data.shape)
-            
         # end = time.perf_counter()
         # print('Filter time:', end - start)
         return _data
@@ -265,18 +235,11 @@ class ClosedLoopLSL:
     
     
     def _set_ref(self, data: xr.DataArray) -> xr.DataArray:
-        # print('Setting reference...')
-        # print(data)
-        # print(data.shape)
-        # print(data.mean(dim='channels').shape)
         if self.ref_ch is not None:
-            # print(data.sel(channels=self.ref_ch).mean(dim='channels').shape)
             data = data - data.sel(channels=self.ref_ch).mean(dim='channels')
-        # print(data)
         return data
     
-    
-    def start_acquisition(self, interval: float=.011, 
+    def start_acquisition(self, interval: float=.001, 
                           channels: list=list(range(64))) -> None:
         
         if not self.stream.connected:
@@ -289,21 +252,16 @@ class ClosedLoopLSL:
         def _acquire_data(interval: float, channels: list) -> None:                
             
             self._aquire = True
-            # t_start = time.perf_counter()
-            # t_next = t_start
             
             while self.aquiring_data:
                 # function timer
                 # start_time = time.perf_counter()
                 
-                # print('Cycling...')
-                
                 self.stream.acquire()
                 # print(self.stream.n_new_samples)
-                # if self.stream.n_new_samples != 0:
                 if self.stream.n_new_samples >= 10:  # Avoid taking chunks shorter than 10 points (20ms)
                     # print(self.stream.n_new_samples)
-                    new_samples = self.stream.n_new_samples
+                    self.new_samples = self.stream.n_new_samples
                     
                     _dt, _ts = self.stream.get_data()
                         
@@ -316,7 +274,6 @@ class ClosedLoopLSL:
                     # start_filt = time.perf_counter()
                     _dt = self._set_filt(_dt)
                     # print('Filter time:', time.perf_counter() - start_filt)
-                    # _dt = self.filter.update(_dt, new_samples)
                     
                     da = xr.DataArray(_dt, 
                                       coords={'channels': _chn, 
@@ -326,7 +283,6 @@ class ClosedLoopLSL:
                     
                     if self.del_chans is not None:
                         da = da.drop_sel(channels=self.del_chans)
-                        # _dt = np.delete(_dt, self.del_chans, axis=0)
                     
                     da = self._set_ref(da)
                     
@@ -337,12 +293,6 @@ class ClosedLoopLSL:
                     # print('Acquisition time:', time.perf_counter() - start_time)
                     
                 high_precision_sleep(interval)
-                # high_precision_sleep(0.001)
-                
-                # t_next = t_next + interval
-                # delay = t_next - time.perf_counter()
-                # if delay > 0:
-                #     high_precision_sleep(delay)
             
             self._aquire = False
             self.queue.put(None)
@@ -351,8 +301,6 @@ class ClosedLoopLSL:
         
         self.queue = queue.Queue()
         self.event = threading.Event()
-        # self.process = multiprocessing.Process(target=_acquire_data, args=(self, interval, channels))
-        # self.process.start()
         self.process = threading.Thread(target=_acquire_data, 
                                         args=(interval, channels), 
                                         daemon=True)
@@ -365,18 +313,10 @@ class ClosedLoopLSL:
     
     
     def get_data(self) -> xr.DataArray:
-        # if self.queue is None:
-        #     print('No data available.')
-        #     return None
-        # elif self.queue.empty():
-        #     print('No data available.')
-        #     return None
-        # else:
         self.event.wait()
         data = self.queue.get(block=True)
         self.event.clear()
         return data
-    
                     
     def stop_acquisition(self):
         start = time.perf_counter()
@@ -389,7 +329,6 @@ class ClosedLoopLSL:
             while self._aquire:
                 pass
             self.process.join()
-            # self.queue.close()
             print('\tAcquisition stopped.\n')
             print('Stop acquisition time:', time.perf_counter() - start)
             return

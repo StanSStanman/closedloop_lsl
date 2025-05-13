@@ -14,7 +14,7 @@ import queue
 # import multiprocessing
 
 from closedloop_lsl.utils.utils import high_precision_sleep
-from closedloop_lsl.core.filter import SlidingFilter
+# from closedloop_lsl.core.filter import SlidingFilter
 
 
 class ClosedLoopLSL:
@@ -289,10 +289,12 @@ class ClosedLoopLSL:
         def _acquire_data(interval: float, channels: list) -> None:                
             
             self._aquire = True
-            t_start = time.perf_counter()
-            t_next = t_start
+            # t_start = time.perf_counter()
+            # t_next = t_start
             
             while self.aquiring_data:
+                # function timer
+                # start_time = time.perf_counter()
                 
                 # print('Cycling...')
                 
@@ -309,8 +311,11 @@ class ClosedLoopLSL:
                         _chn = list(range(_dt.shape[0]))
                     else:
                         _chn = self.ch_names
-                        
+                    
+                    # filter timer
+                    # start_filt = time.perf_counter()
                     _dt = self._set_filt(_dt)
+                    # print('Filter time:', time.perf_counter() - start_filt)
                     # _dt = self.filter.update(_dt, new_samples)
                     
                     da = xr.DataArray(_dt, 
@@ -329,8 +334,8 @@ class ClosedLoopLSL:
                         self.queue.get()
                     self.queue.put(da)
                     self.event.set()
-                    # print('Inner cycle time:', time.perf_counter() - t_start)
-                    # t_start = time.perf_counter()
+                    # print('Acquisition time:', time.perf_counter() - start_time)
+                    
                 high_precision_sleep(interval)
                 # high_precision_sleep(0.001)
                 
@@ -338,7 +343,6 @@ class ClosedLoopLSL:
                 # delay = t_next - time.perf_counter()
                 # if delay > 0:
                 #     high_precision_sleep(delay)
-                # print('Acquisition time:', time.perf_counter() - start_time)
             
             self._aquire = False
             self.queue.put(None)

@@ -3,9 +3,7 @@ import os
 import os.path as op
 import time
 import datetime
-# import numpy as np
-# import xarray as xr
-# import mne
+
 import signal
 import subprocess
 import pyglet
@@ -55,122 +53,112 @@ alarm_sound = op.join(cfg['DEFAULT']['SoundsPath'], 'alarm.wav')
 trig_codes = {'cingulate-lh': 22, 'cingulate-rh': 24,
               'occipital-lh': 32, 'occipital-rh': 34}
 
-# eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
-#                 '1LB', '1RB', '2L', '2R', '3L', '3R', 
-#                 '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
-#                 '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
-#                 '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
-#                 '3RD', '3LD', '9Z', '8Z', '7Z', '6Z', 'EOG',
-#                 '10L', '10R', '9L', '9R', '8L', '8R', 
-#                 '7L', '7R', '6L', '6R', '5L', '5R', 
-#                 '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
-#                 '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
-#                 '4LB', '4RB', 'BIP1', 'BIP2', 'BIP3',
-#                 'TRIG1']
-eeg_channels = ['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
-                'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
-                'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
-                'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
-                'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
-                'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
-                'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
-                'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
-                'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
-                'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
-                'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
-                'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
-                'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
-                'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
-                'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
-                'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
-                'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
-                'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
-                'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
-                'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
-                'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
-                'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
-                'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
-                'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
-                'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
-                'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
-                'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
-                'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
-                'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
-                'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
-                'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
-                'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
-                'VEOGR', 'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
-                'Z19Z', 'Z20Z', 'BIP1', 'BIP2', 'BIP3', 'TRIG1']
+eeg_channels = ['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+                '1LB', '1RB', '2L', '2R', '3L', '3R', 
+                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z', 'EOG',
+                '10L', '10R', '9L', '9R', '8L', '8R', 
+                '7L', '7R', '6L', '6R', '5L', '5R', 
+                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+                '4LB', '4RB', 'BIP1', 'BIP2', 'BIP3',
+                'TRIG1']
+# eeg_channels = ['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
+#                 'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
+#                 'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
+#                 'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
+#                 'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
+#                 'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
+#                 'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
+#                 'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
+#                 'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
+#                 'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
+#                 'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
+#                 'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
+#                 'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
+#                 'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
+#                 'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
+#                 'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
+#                 'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
+#                 'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
+#                 'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
+#                 'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
+#                 'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
+#                 'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
+#                 'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
+#                 'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
+#                 'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
+#                 'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
+#                 'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
+#                 'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
+#                 'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
+#                 'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
+#                 'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
+#                 'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
+#                 'VEOGR', 'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
+#                 'Z19Z', 'Z20Z', 'BIP1', 'BIP2', 'BIP3', 'TRIG1']
 
-# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
-# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3']
-# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG1', 'TRIG2']
-# deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3', 'TRIG2']
-deleted_channels = ['VEOGR', 'BIP1', 'BIP2', 'BIP3']
+deleted_channels = ['EOG', 'BIP1', 'BIP2', 'BIP3']
+# deleted_channels = ['VEOGR', 'BIP1', 'BIP2', 'BIP3']
 
 # Load topographies
 
 # MAYBE IT IS BETTER TO REPLACE ALL OF THAT WITH DICTONARY
 tp_dir = cfg['DEFAULT']['TemplatesPath']
-# tp_fname = op.join(tp_dir, 'epo_topo_fronto-occipital_geodesic_64ch.nc')
-tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_256ch.nc')
+tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_64ch.nc')
+# tp_fname = op.join(tp_dir, 'epo_topo_geodesic_mastoid-ref_256ch.nc')
 all_templates = TopoTemplates()
 all_templates.load_templates(tp_fname)
-# all_templates.reorder_channels(['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
-#                                 '1LB', '1RB', '2L', '2R', '3L', '3R', 
-#                                 '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
-#                                 '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
-#                                 '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
-#                                 '3RD', '3LD', '9Z', '8Z', '7Z', '6Z',
-#                                 '10L', '10R', '9L', '9R', '8L', '8R', 
-#                                 '7L', '7R', '6L', '6R', '5L', '5R', 
-#                                 '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
-#                                 '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
-#                                 '4LB', '4RB', '5Z'])
-all_templates.reorder_channels(['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
-                                'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
-                                'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
-                                'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
-                                'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
-                                'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
-                                'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
-                                'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
-                                'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
-                                'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
-                                'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
-                                'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
-                                'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
-                                'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
-                                'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
-                                'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
-                                'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
-                                'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
-                                'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
-                                'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
-                                'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
-                                'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
-                                'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
-                                'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
-                                'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
-                                'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
-                                'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
-                                'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
-                                'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
-                                'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
-                                'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
-                                'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
-                                'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
-                                'Z19Z', 'Z20Z', 'Z12Z'])
-all_templates.del_channels(['Z12Z'])
-# loaded_templates = xr.open_dataarray(tp_fname)
-# all_templates = {}
-# for roi in loaded_templates.rois.values:
-#     roi = roi.item()
-#     all_templates[roi] = loaded_templates.sel(rois=[roi], times=slice(-.015, .015)).mean('times').values.squeeze()
-# cin_lh = templates.sel(rois=['cingulate-lh'], times=slice(-.015, .015)).mean('times').values.squeeze()
-# cin_rh = templates.sel(rois=['cingulate-rh'], times=slice(-.015, .015)).mean('times').values.squeeze()
-# occ_lh = templates.sel(rois=['occipital-lh'], times=slice(-.015, .015)).mean('times').values.squeeze()
-# occ_rh = templates.sel(rois=['occipital-rh'], times=slice(-.015, .015)).mean('times').values.squeeze()
+all_templates.reorder_channels(['0Z', '1Z', '2Z', '3Z', '4Z', '1L', '1R', 
+                                '1LB', '1RB', '2L', '2R', '3L', '3R', 
+                                '4L', '4R', '1LC', '1RC', '2LB', '2RB', 
+                                '1LA', '1RA', '1LD', '1RD', '2LC', '2RC', 
+                                '3LB', '3RB', '3LC', '3RC', '2LD', '2RD', 
+                                '3RD', '3LD', '9Z', '8Z', '7Z', '6Z',
+                                '10L', '10R', '9L', '9R', '8L', '8R', 
+                                '7L', '7R', '6L', '6R', '5L', '5R', 
+                                '4LD', '4RD', '5LC', '5RC', '5LB', '5RB', 
+                                '3LA', '3RA', '2LA', '2RA', '4LC', '4RC', 
+                                '4LB', '4RB', '5Z'])
+# all_templates.reorder_channels(['Z1L', 'Z2L', 'Z3L', 'Z4L', 'Z5L', 'Z6L', 'Z7L', 'Z8L', 
+#                                 'Z9L', 'Z10L', 'Z11L', 'Z12L', 'Z13L', 'Z14L', 'Z15L', 
+#                                 'Z16L', 'Z17L', 'Z18L', 'Z19L', 'L1Z', 'L2Z', 'L3Z', 
+#                                 'L4Z', 'L5Z', 'L6Z', 'L7Z', 'L8Z', 'L9Z', 'L10Z', 'L11Z', 
+#                                 'L12Z', 'L13Z', 'L14Z', 'L15Z', 'L16Z', 'L17Z', 'L18Z', 
+#                                 'L19Z', 'L20Z', 'L1L', 'L2L', 'L3L', 'L4L', 'L5L', 'L6L', 
+#                                 'L7L', 'L8L', 'L9L', 'L10L', 'L11L', 'L12L', 'L13L', 
+#                                 'L14L', 'L15L', 'L16L', 'L17L', 'L18L', 'L19L', 'L1A', 
+#                                 'L2A', 'L3A', 'L4A', 'L5A', 'L6A', 'L1B', 'L2B', 'L3B', 
+#                                 'L4B', 'L5B', 'L6B', 'L7B', 'L1C', 'L2C', 'L3C', 'L4C', 
+#                                 'L5C', 'L6C', 'L7C', 'L8C', 'L1D', 'L2D', 'L3D', 'L4D', 
+#                                 'L5D', 'L6D', 'L7D', 'L8D', 'L9D', 'L1E', 'L2E', 'L3E', 
+#                                 'L4E', 'L5E', 'L6E', 'L7E', 'L8E', 'L9E', 'L10E', 'L1F', 
+#                                 'L2F', 'L3F', 'L4F', 'L5F', 'L6F', 'L7F', 'L8F', 'L1G', 
+#                                 'L2G', 'L3G', 'L4G', 'L5G', 'L6G', 'L7G', 'L1H', 'L2H', 
+#                                 'L3H', 'L4H', 'L5H', 'Z1Z', 'Z2Z', 'Z3Z', 'Z4Z', 'Z5Z', 
+#                                 'Z6Z', 'Z7Z', 'Z8Z', 'Z9Z', 'Z10Z', 'Z1R', 'Z2R', 'Z3R', 
+#                                 'Z4R', 'Z5R', 'Z6R', 'Z7R', 'Z8R', 'Z9R', 'Z10R', 'Z11R', 
+#                                 'Z12R', 'Z13R', 'Z14R', 'Z15R', 'Z16R', 'Z17R', 'Z18R', 
+#                                 'Z19R', 'R1Z', 'R2Z', 'R3Z', 'R4Z', 'R5Z', 'R6Z', 'R7Z', 
+#                                 'R8Z', 'R9Z', 'R10Z', 'R11Z', 'R12Z', 'R13Z', 'R14Z', 
+#                                 'R15Z', 'R16Z', 'R17Z', 'R18Z', 'R19Z', 'R20Z', 'R1R', 
+#                                 'R2R', 'R3R', 'R4R', 'R5R', 'R6R', 'R7R', 'R8R', 'R9R', 
+#                                 'R10R', 'R11R', 'R12R', 'R13R', 'R14R', 'R15R', 'R16R', 
+#                                 'R17R', 'R18R', 'R19R', 'R1A', 'R2A', 'R3A', 'R4A', 'R5A', 
+#                                 'R6A', 'R1B', 'R2B', 'R3B', 'R4B', 'R5B', 'R6B', 'R7B', 
+#                                 'R1C', 'R2C', 'R3C', 'R4C', 'R5C', 'R6C', 'R7C', 'R8C', 
+#                                 'R1D', 'R2D', 'R3D', 'R4D', 'R5D', 'R6D', 'R7D', 'R8D', 
+#                                 'R9D', 'R1E', 'R2E', 'R3E', 'R4E', 'R5E', 'R6E', 'R7E', 
+#                                 'R8E', 'R9E', 'R10E', 'R1F', 'R2F', 'R3F', 'R4F', 'R5F', 
+#                                 'R6F', 'R7F', 'R8F', 'R1G', 'R2G', 'R3G', 'R4G', 'R5G', 
+#                                 'R6G', 'R7G', 'R1H', 'R2H', 'R3H', 'R4H', 'R5H', 'Z11Z', 
+#                                 'Z13Z', 'Z14Z', 'Z15Z', 'Z16Z', 'Z17Z', 'Z18Z', 
+#                                 'Z19Z', 'Z20Z', 'Z12Z'])
+
+all_templates.del_channels(['5Z'])
+# all_templates.del_channels(['Z12Z'])
 
 # Create a window
 mainWin = visual.Window(size=[800, 600], pos=[0, 0], fullscr=False, color='black', allowGUI=True, title='Closed-Loop LSL v0.1')
@@ -206,13 +194,10 @@ streamInfoText = visual.TextStim(mainWin, text='Starting the stream...', pos=(0,
 # Draw the buttons
 mainWin.flip()
 
-# groupObjMain = [subintroText, streamTextbox, strtypeTextbox, streamTlabel, strtypeLabel, startButton, startButtonLabel, stopButton, stopButtonLabel]
-
 # Check if the mouse is clicked on the button
 is_stream_active = False
 streamMouse = event.Mouse(win=mainWin)
 while True:
-    # iter_draw(groupObjMain)
     
     if streamMouse.isPressedIn(startButton):
         while streamMouse.getPressed()[0]:  # Wait until the mouse button is released
@@ -223,7 +208,6 @@ while True:
         if not is_stream_active:
             # Starting the stream
             streamInfoText.setAutoDraw(True)
-            # iter_draw(groupObjMain)
             mainWin.flip()
             # Define stream name and type
             streams_name = streamTextbox.text
@@ -234,46 +218,33 @@ while True:
                                    del_chans=deleted_channels)
             stream.search_stream(sname=streams_name, stype=streams_type)
             streamInfoText.text = 'Stream found.'
-            # streamInfoText.draw()
-            # iter_draw(groupObjMain)
             mainWin.flip()
             
             stream.open_stream(bufsize=7.)
             streamInfoText.text = 'Stream opened.'
-            # streamInfoText.draw()
-            # iter_draw(groupObjMain)
             mainWin.flip()
             
             stream.connect_stream()
             streamInfoText.text = 'Stream connected.'
-            # streamInfoText.draw()
-            # iter_draw(groupObjMain)
             mainWin.flip()
             
-            # params = {'ftype': 'cheby2', 'gpass': 3, 'gstop': 10, 'output': 'sos'}
-            # iir_params = mne.filter.construct_iir_filter(params, 
-            #                                             f_pass=[.5, 4.], 
-            #                                             f_stop=[.1, 10.], 
-            #                                             sfreq=500., 
-            #                                             btype='bandpass')
-            # iir_params = dict(order=4, ftype='butter', output='sos')
-            # stream.apply_filter(low_freq=.5, high_freq=4.,
-            #                     filter_length='auto',
-            #                     picks=slice(0, 64),
-            #                     method='fir',
-            #                     iir_params=None,
-            #                     pad='reflect')
             stream.apply_filter(low_freq=.5, high_freq=4.,
                                 filter_length='auto',
-                                picks=slice(0, 256),
+                                picks=slice(0, 64),
                                 method='fir',
                                 iir_params=None,
                                 pad='reflect')
-            stream.set_reference_channels(['R4H', 'L4H'])
-            stream.start_acquisition(interval=0.0005)
+            # stream.apply_filter(low_freq=.5, high_freq=4.,
+            #                     filter_length='auto',
+            #                     picks=slice(0, 256),
+            #                     method='fir',
+            #                     iir_params=None,
+            #                     pad='reflect')
+            print('Filter applied')
+            stream.set_reference_channels(['3LD', '3RD'])
+            # stream.set_reference_channels(['R4H', 'L4H'])
+            stream.start_acquisition(interval=0.001)
             streamInfoText.text = 'Stream active.'
-            # streamInfoText.draw()
-            # iter_draw(groupObjMain)
             mainWin.flip()
             streamInfoText.setAutoDraw(False)
             
@@ -289,9 +260,7 @@ while True:
         # New window for the detection
         detectWin = visual.Window(size=[500, 500], pos=(150, 150), monitor=my_monitor, fullscr=False, color='black', allowGUI=True, title='SW selection')
         detectText = visual.TextStim(detectWin, text='Automatic SW Detection', pos=(0, .8), height=0.12, color='cyan', font='Night Sky', autoDraw=True)
-        # detectText.draw()
         detectSubText = visual.TextStim(detectWin, text='Click on \'Start detect\' to begin.', pos=(0, .55), height=0.065, color='white', font='Nimbus Sans', autoDraw=True)
-        # detectSubText.draw()
         startDetectText = visual.TextStim(detectWin, text='Starting the detection...', pos=(0, -.6), height=0.08, color='white', font='Nimbus Sans')
         
         selected_topo = 'cingulate'
@@ -302,24 +271,15 @@ while True:
         topoText = visual.TextStim(detectWin, text='Select the topographies:', pos=(0, .35), height=0.08, color='white', font='Nimbus Sans', autoDraw=True)
         topo1Label = visual.TextStim(detectWin, text='Cingulate', pos=(-.5, .2), height=0.075, font='Nimbus Sans', autoDraw=True)
         topo2Label = visual.TextStim(detectWin, text='Occipital', pos=(.5, .2), height=0.075, font='Nimbus Sans', autoDraw=True)
-        # if selected_topo == 'cingulate':
         topo1Button = visual.Circle(detectWin, radius=.05, pos=(-.5, .05), fillColor='green', autoDraw=True)
         topo2Button = visual.Circle(detectWin, radius=.05, pos=(.5, .05), fillColor='white', autoDraw=True)
-        # else:
-            # topo1Button = visual.Circle(detectWin, radius=.05, pos=(-.5, .05), fillColor='white')
-            # topo2Button = visual.Circle(detectWin, radius=.05, pos=(.5, .05), fillColor='green')
             
         # Peak detection buttons
-        # selected_peak = 'negative'
         peakText = visual.TextStim(detectWin, text='Select the peak type:', pos=(0, -.2), height=0.08, color='white', font='Nimbus Sans', autoDraw=True)
         peak1Label = visual.TextStim(detectWin, text='Negative', pos=(-.5, -.35), height=0.08, font='Nimbus Sans', autoDraw=True)
         peak2Label = visual.TextStim(detectWin, text='Positive', pos=(.5, -.35), height=0.08, font='Nimbus Sans', autoDraw=True)
-        # if selected_peak == 'negative':
         peak1Button = visual.Circle(detectWin, radius=.05, pos=(-.5, -.5), fillColor='green', autoDraw=True)
         peak2Button = visual.Circle(detectWin, radius=.05, pos=(.5, -.5), fillColor='white', autoDraw=True)
-        # else:
-        #     peak1Button = visual.Circle(detectWin, radius=.05, pos=(-.5, -.5), fillColor='white')
-        #     peak2Button = visual.Circle(detectWin, radius=.05, pos=(.5, -.5), fillColor='green')
         
         # Start detection button
         detectButton = visual.Rect(detectWin, width=.5, height=.2, pos=(-.4, -.8), fillColor='green', autoDraw=True)
@@ -330,16 +290,13 @@ while True:
         stopDetectButtonLabel = visual.TextStim(detectWin, text='Exit', pos=(.4, -.8), height=0.08, font='Nimbus Sans', autoDraw=True)
         
         detectWin.flip()
-        
-        # groupObjDetect = [detectText, detectSubText, topoText, topo1Label, topo2Label, topo1Button, topo2Button, peakText, peak1Label, peak2Label, peak1Button, peak2Button, detectButton, detectButtonLabel, stopDetectButton, stopDetectButtonLabel]
-        
+                
         # Reinitializing the stream makes you unsure about the devices
         not_really_sure_about_the_devices = True
         
         # Mouse
         detectMouse = event.Mouse(win=detectWin)
         while True:
-            # iter_draw(groupObjDetect)
             # Choose the topography and peak type
             if detectMouse.isPressedIn(topo1Button):
                 while detectMouse.getPressed()[0]:  # Wait until the mouse button is released
@@ -374,7 +331,6 @@ while True:
                 startDetectText.draw()
                 stopDetectButtonLabel.text = 'Stop detect'
                 
-                # iter_draw(groupObjDetect)
                 detectWin.flip()
                 
                 # Selcting templates
@@ -388,22 +344,6 @@ while True:
                 templates = all_templates.select_templates(roi=selected_topo, 
                                                            phase=peak, 
                                                            twin=(-.025, .0))
-
-                # if selected_topo == 'cingulate':
-                #     templates = [[all_templates[topo], topo, None] 
-                #                  for topo in all_templates.keys() 
-                #                  if 'cingulate' in topo]
-                # else:
-                #     templates = [[all_templates[topo], topo, None] 
-                #                  for topo in all_templates.keys() 
-                #                  if 'occipital' in topo]
-                
-                # if selected_peak == 'negative':
-                #     for template in templates:
-                #         template[2] = 'neg'
-                # else:
-                #     for template in templates:
-                #         template[2] = 'pos'
                 
                 # Initialize the detector
                 sw_catcher = SWCatcher(sfreq=500, 
@@ -424,8 +364,6 @@ while True:
                 sound_dev = stimulator.get_devices()
                 record_dev = stimulator.get_devices(capture_devices=True)
                 
-                # maybe add an autoselector for the devices here 
-                
                 # Select devices
                 while not_really_sure_about_the_devices:
                     devsel = gui.Dlg(title='Select audio devices')
@@ -433,12 +371,10 @@ while True:
                                     initial=cfg['DEVICES']['speakers'])
                     devsel.addField("Headphones device", choices=sound_dev, 
                                     initial=cfg['DEVICES']['headphones'])
-                    # devsel.addField("Microphone device", choices=record_dev)
 
                     params = devsel.show()
 
                     if devsel.OK:
-                        # spk, hdp, mic = params.values()
                         spk, hdp = params.values()
                         not_really_sure_about_the_devices = False
                     else:
@@ -449,7 +385,6 @@ while True:
                 
                 startDetectText.text = 'Detection started'
                 startDetectText.draw()
-                # iter_draw(groupObjDetect)
                 detectWin.flip()
                 
                 # Timer for checking detection status
@@ -462,11 +397,8 @@ while True:
                 # Prepare interrupt stimulation window
                 interruptWin = visual.Window(size=[300, 300], pos=(250, 250), monitor=my_monitor, fullscr=False, color='black', allowGUI=True, title='Be ready!')
                 interruptText = visual.TextStim(interruptWin, text='Button will become green when a SW is detected.\nPress it within 5 seconds to stop stimulation.', pos=(0, .65), height=0.12, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
-                # interruptText.draw()
                 interruptButton = visual.Rect(interruptWin, width=1.85, height=1.2, pos=(0, -.35), fillColor='gray', autoDraw=True)
-                # interruptButton.draw()
                 interruptButtonLabel = visual.TextStim(interruptWin, text='Click to stop stimulation', pos=(0, -.35), height=0.28, color='white', wrapWidth=1.5, font='Nimbus Sans', autoDraw=True)
-                # interruptButtonLabel.draw()
                 interruptWin.flip()
                 
                 # Core of the closed loop
@@ -491,8 +423,6 @@ while True:
                                 
                         start_stim_time = time.perf_counter()
                         interruptButton.fillColor = 'green'
-                        # interruptButton.draw()
-                        # interruptButtonLabel.draw()
                         interruptWin.flip()
                         stim_completed = True
                         stimtime = datetime.datetime.now().strftime("%H%M%S")
@@ -559,7 +489,6 @@ while True:
                         sw_catcher.stop_sw_detection()
                         startDetectText.text = 'Detection stopped'
                         startDetectText.draw()
-                        # iter_draw(groupObjDetect)
                         detectButton.fillColor = 'green'
                         stopDetectButton.fillColor = 'red'
                         stopDetectButtonLabel.text = 'Exit'
@@ -577,7 +506,6 @@ while True:
                 stopDetectButton.fillColor = 'gray'
                 startDetectText.text = 'Exit detection'
                 startDetectText.draw()
-                # iter_draw(groupObjDetect)
                 detectWin.flip()
                 high_precision_sleep(2.)
                 detectWin.close()
@@ -588,13 +516,11 @@ while True:
                 
             detectWin.flip()
             
-        
         # print(streamTextbox.text)
         # print(strtypeTextbox.text)
         # # startButton.fillColor = 'green'
         # # stopButtonLabel.text = 'Exit'
         # mainWin.flip()
-        
     
     if streamMouse.isPressedIn(stopButton):
         while streamMouse.getPressed()[0]:  # Wait until the mouse button is released

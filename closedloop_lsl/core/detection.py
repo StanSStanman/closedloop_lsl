@@ -83,6 +83,7 @@ class SWCatcher:
             True if the last peak is in the range and the signal amplitude is 
             still decreasing, False otherwise.
         """
+        # func_start = time.perf_counter()
         
         # Check on data shape
         assert data.ndim == 2, "Data should be 2D."
@@ -102,6 +103,9 @@ class SWCatcher:
         
         # q.put(is_in_range and is_decreasing)
         q[0] = (is_in_range and is_decreasing, last_samp_amp, is_decreasing)
+        
+        # func_end = time.perf_counter()
+        # print('n_peak:', func_end - func_start)
         
         # Return True if the last sample is in the range and 
         # the signal amplitude is still decreasing
@@ -124,6 +128,7 @@ class SWCatcher:
             True if the last peak is in the range and the signal amplitude is 
             still increasing, False otherwise.
         """
+        # func_start = time.perf_counter()
         
         # Check on data shape
         assert data.ndim == 2, "Data should be 2D."
@@ -144,6 +149,9 @@ class SWCatcher:
         # q.put(is_in_range and is_increasing)
         # q[4] = is_in_range and is_increasing
         q[1] = (is_in_range and is_increasing, last_samp_amp, is_increasing)
+        
+        # func_end = time.perf_counter()
+        # print('p_peak:', func_end - func_start)
         
         # Return True if the last sample is in the range and
         # the signal amplitude is still increasing
@@ -166,6 +174,7 @@ class SWCatcher:
         bool
             True if the correlation is above the threshold, False otherwise.
         """
+        # func_start = time.perf_counter()
         
         # Add assertion check for data shape
         
@@ -196,6 +205,9 @@ class SWCatcher:
         # q.put((is_high_corr and is_increasing, corr[-1]))
         q[2] = (is_high_corr and is_increasing, corr[-1])
         
+        # func_end = time.perf_counter()
+        # print('corr:', func_end - func_start)
+        
         # Return True if the last correlation value is above the threshold and
         # the correlation is still increasing
         return (is_high_corr and is_increasing, corr[-1])
@@ -217,6 +229,7 @@ class SWCatcher:
         bool
             True if the correlation is above the threshold, False otherwise.
         """
+        # func_start = time.perf_counter()
         
         # Add assertion check for data shape
         
@@ -248,6 +261,9 @@ class SWCatcher:
         # q.put((is_high_corr and is_increasing, corr[-1]))
         q[6] = (is_high_corr and is_increasing, corr[-1])
         
+        # func_end = time.perf_counter()
+        # print('zs_corr:', func_end - func_start)
+        
         return (is_high_corr and is_increasing, corr[-1])
 
 
@@ -269,6 +285,7 @@ class SWCatcher:
         bool
             True if the distance is below the threshold, False otherwise.
         """
+        # func_start = time.perf_counter()
         
         # Add assertion check for data shape
         
@@ -302,6 +319,9 @@ class SWCatcher:
         # q.put((is_low_dist and is_decreasing, dist[-1]))
         q[3] = (is_low_dist and is_decreasing, dist[-1])
         
+        # func_end = time.perf_counter()
+        # print('dist:', func_end - func_start)
+        
         # Return True if the last distance value is below the threshold and
         # the distance is still decreasing
         return (is_low_dist and is_decreasing, dist[-1])
@@ -326,6 +346,7 @@ class SWCatcher:
         tuple
             The phase of the slow wave, 'down' for down state and 'up' for up state.
         """
+        # func_start = time.perf_counter()
         
         # Add assertion check for data shape
         
@@ -380,8 +401,16 @@ class SWCatcher:
         # q.put((is_phase, sw_freq, next_target))
         if phase == 'neg':
             q[4] = (is_phase, sw_freq, next_target)
+            
+            # func_end = time.perf_counter()
+            # print('n_phase:', func_end - func_start)
+            
         elif phase == 'pos':
             q[5] = (is_phase, sw_freq, next_target)
+            
+            # func_end = time.perf_counter()
+            # print('p_phase:', func_end - func_start)
+            
         else:
             raise ValueError("Phase must be 'neg' or 'pos'.")
         
@@ -555,8 +584,7 @@ class SWCatcher:
             A tuple with the result of the detections, the slow wave frequency,
             and the possible number of samples to the next up-phase.
         """
-        
-        c_data = data.copy()
+        # detection_start = time.perf_counter()
         
         # start = time.time()
         target, roi, phase = template
@@ -569,9 +597,11 @@ class SWCatcher:
         # data = data.values
         # Compute the envelope of the data
         # envp = envelope(data, n_excl=1, n_kept=3, center=True)
-        envp, idx = moving_envp(c_data.copy(), n_excl=1, n_kept=3,
+        envp, idx = moving_envp(data, n_excl=1, n_kept=3,
                                 ntp=750, center=False, idx=self._idx)
         # envp, idx = temp_envp(data, target, n_chans=3, center=True)
+        
+        # assert np.array_equal(data, c_data)
         
         # tstart = time.perf_counter()
         # if self._apply_laplacian:
@@ -614,13 +644,13 @@ class SWCatcher:
         
         queues = [None, None, None, None, None, None, None]
         
-        args = [(envp.copy(), queues), # Negative peak detection
-                (envp.copy(), queues), # Positive peak detection
-                (c_data.copy(), target, queues), # Correlation
-                (c_data.copy(), target, queues), # Distance
-                (envp.copy(), 'neg', queues), # Negative phase detection
-                (envp.copy(), 'pos', queues), # Positive phase detection
-                (c_data.copy(), target, queues)] # ZS correlation
+        args = [(envp, queues), # Negative peak detection
+                (envp, queues), # Positive peak detection
+                (data, target, queues), # Correlation
+                (data, target, queues), # Distance
+                (envp, 'neg', queues), # Negative phase detection
+                (envp, 'pos', queues), # Positive phase detection
+                (data, target, queues)] # ZS correlation
         
         threads = []
         for i in range(len(algorithms)):
@@ -705,6 +735,9 @@ class SWCatcher:
         
         # print(f"Detection time: {time.time() - start}")
         # print(f"Listener {proc_num} results: {result}")
+        
+        # detection_end = time.perf_counter()
+        # print('Detection time inner', detection_end - detection_start)
         return result
 
 

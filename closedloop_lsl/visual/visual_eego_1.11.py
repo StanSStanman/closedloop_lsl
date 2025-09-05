@@ -243,7 +243,7 @@ while True:
             print('Filter applied')
             stream.set_reference_channels(['3LD', '3RD'])
             # stream.set_reference_channels(['R4H', 'L4H'])
-            stream.start_acquisition(interval=0.001)
+            stream.start_acquisition(interval=0.0005)
             streamInfoText.text = 'Stream active.'
             mainWin.flip()
             streamInfoText.setAutoDraw(False)
@@ -451,25 +451,25 @@ while True:
                         interruptWin.flip()
                         
                         # UCOMMENT ALL THIS BLOCK TO STOP THE DETECTION AFTER THE FIRST SW
-                        # running = False
-                        # # Stop stimulator
-                        # stimulator.stop()
-                        # interruptWin.close()
-                        # # Stop detection
-                        # sw_catcher.stop_sw_detection()
-                        # startDetectText.text = 'Detection stopped'
-                        # startDetectText.draw()
-                        # # iter_draw(groupObjDetect)
-                        # detectButton.fillColor = 'green'
-                        # stopDetectButton.fillColor = 'red'
-                        # stopDetectButtonLabel.text = 'Exit'
-                        # detectWin.flip()
-                        # high_precision_sleep(1.)
-                        # if stim_completed:
-                        #     # sart questionnatire
-                        #     print('Questionnaire started')
-                        #     dq = dreamquestrc(*(participant_info))
-                        # break
+                        running = False
+                        # Stop stimulator
+                        stimulator.stop()
+                        interruptWin.close()
+                        # Stop detection
+                        sw_catcher.stop_sw_detection()
+                        startDetectText.text = 'Detection stopped'
+                        startDetectText.draw()
+                        # iter_draw(groupObjDetect)
+                        detectButton.fillColor = 'green'
+                        stopDetectButton.fillColor = 'red'
+                        stopDetectButtonLabel.text = 'Exit'
+                        detectWin.flip()
+                        high_precision_sleep(1.)
+                        if stim_completed:
+                            # sart questionnatire
+                            print('Questionnaire started')
+                            dq = dreamquestrc(*(participant_info))
+                        break
                             
                                                             
                     if time.time() - checkpoint > check_detect:
